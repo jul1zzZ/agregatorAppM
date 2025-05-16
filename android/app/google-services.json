@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "798566423253",
+    "project_id": "agregator-7a8a2",
+    "storage_bucket": "agregator-7a8a2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:798566423253:android:2579c3b2763f1fc76ca05c",
+        "android_client_info": {
+          "package_name": "com.example.agregatorapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCl-mjAORS_3tF9__yabfwIS24djX_-mUc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
