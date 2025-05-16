@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:agregatorapp/screens/services_map_screen.dart';
 
 
 class HomeScreen extends StatelessWidget {
@@ -101,6 +102,18 @@ class HomeScreen extends StatelessWidget {
                 Navigator.pushNamed(context, '/chat_list');
               },
             ),
+SizedBox(height: 10),
+            ElevatedButton.icon(
+  icon: Icon(Icons.map),
+  label: Text('Услуги на карте'),
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ServicesMapScreen()),
+    );
+  },
+),
+
           ],
         ),
       ),

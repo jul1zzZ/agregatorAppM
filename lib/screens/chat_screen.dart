@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:agregatorapp/models/message_model.dart'; // модель Message
+import 'package:agregatorapp/models/message_model.dart';
 
 class ChatScreen extends StatefulWidget {
   final String chatId;
-  final String currentUserEmail;  // теперь email
+  final String currentUserEmail;
 
-   const ChatScreen({
-    Key? key, // ✅ добавили key
+  const ChatScreen({
+    Key? key,
     required this.chatId,
     required this.currentUserEmail,
-  }) : super(key: key); // ✅ передали key в super
+  }) : super(key: key);
 
   @override
   _ChatScreenState createState() => _ChatScreenState();
@@ -35,41 +35,50 @@ class _ChatScreenState extends State<ChatScreen> {
         .doc(widget.chatId)
         .get();
 
-    if (!chatDoc.exists) return;
+    if (chatDoc.exists) {
+      final data = chatDoc.data();
+      if (data != null && data['participantsEmails'] != null) {
+        final participantsEmails = List<String>.from(data['participantsEmails']);
+        final otherEmail = participantsEmails.firstWhere(
+          (email) => email != widget.currentUserEmail,
+          orElse: () => '',
+        );
 
-    final data = chatDoc.data();
-    if (data == null) return;
+        if (otherEmail.isNotEmpty) {
+          setState(() {
+            otherUserEmail = otherEmail;
+            final participantData = data['participants']?[otherEmail];
+            otherUserName = participantData?['name'] ?? 'Пользователь';
+            otherUserAvatarUrl = participantData?['avatarUrl'] ?? '';
+          });
+          return;
+        }
+      }
+    }
 
-    // Берём список email участников
-    final participantsEmails = List<String>.from(data['participantsEmails'] ?? []);
-
-    // Ищем email собеседника (не текущий)
-    final otherEmail = participantsEmails.firstWhere(
-      (email) => email != widget.currentUserEmail,
-      orElse: () => '',
-    );
-
-    if (otherEmail.isEmpty) return;
-
-    // Ищем пользователя в users по email
-    final querySnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .where('email', isEqualTo: otherEmail)
-        .limit(1)
-        .get();
-
-    if (querySnapshot.docs.isEmpty) return;
-
-    final userData = querySnapshot.docs.first.data();
-
-    setState(() {
-      otherUserEmail = otherEmail;
-      otherUserName = userData['name'] ?? 'Пользователь';
-      otherUserAvatarUrl = userData['profileImageUrl'] ?? '';
-    });
+    // Если данных нет, пробуем извлечь email из chatId
+    final parts = widget.chatId.split('_');
+    if (parts.length == 2) {
+      final candidate = parts.firstWhere((email) => email != widget.currentUserEmail, orElse: () => '');
+      if (candidate.isNotEmpty) {
+        final userQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: candidate)
+            .limit(1)
+            .get();
+        if (userQuery.docs.isNotEmpty) {
+          final userData = userQuery.docs.first.data();
+          setState(() {
+            otherUserEmail = candidate;
+            otherUserName = userData['name'] ?? 'Пользователь';
+            otherUserAvatarUrl = userData['profileImageUrl'] ?? '';
+          });
+        }
+      }
+    }
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
@@ -79,11 +88,55 @@ class _ChatScreenState extends State<ChatScreen> {
       'timestamp': FieldValue.serverTimestamp(),
     };
 
-    FirebaseFirestore.instance
-        .collection('chats')
-        .doc(widget.chatId)
-        .collection('messages')
-        .add(message);
+    final chatRef = FirebaseFirestore.instance.collection('chats').doc(widget.chatId);
+    final chatDoc = await chatRef.get();
+
+    // Если чат ещё не существует — создаём
+    if (!chatDoc.exists) {
+      if (otherUserEmail == null || otherUserEmail!.isEmpty) return;
+
+      final currentUserDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: widget.currentUserEmail)
+          .limit(1)
+          .get();
+
+      final otherUserDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: otherUserEmail)
+          .limit(1)
+          .get();
+
+      if (currentUserDoc.docs.isEmpty || otherUserDoc.docs.isEmpty) return;
+
+      final currentUserData = currentUserDoc.docs.first.data();
+      final otherUserData = otherUserDoc.docs.first.data();
+
+      await chatRef.set({
+        'participantsEmails': [widget.currentUserEmail, otherUserEmail],
+        'participants': {
+          widget.currentUserEmail: {
+            'name': currentUserData['name'] ?? 'Пользователь',
+            'avatarUrl': currentUserData['profileImageUrl'] ?? '',
+          },
+          otherUserEmail!: {
+            'name': otherUserData['name'] ?? 'Пользователь',
+            'avatarUrl': otherUserData['profileImageUrl'] ?? '',
+          },
+        },
+        'lastMessage': text,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+    } else {
+      // Обновляем lastMessage
+      await chatRef.update({
+        'lastMessage': text,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+    }
+
+    // Добавляем сообщение
+    await chatRef.collection('messages').add(message);
 
     _controller.clear();
   }
