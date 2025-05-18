@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import 'screens/performer_profile_screen.dart';
 import 'screens/forgot_passwd_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
@@ -34,6 +34,9 @@ class MyApp extends StatelessWidget {
         '/catalog': (context) => ServiceCatalogScreen(),
         '/add_service': (context) => AddEditServiceScreen(),
         '/chat_list': (context) => const ChatListScreen(),
+        '/performer_profile': (context) => PerformerProfileScreen(
+      performerId: ModalRoute.of(context)!.settings.arguments as String,
+    ),
       },
     );
   }

@@ -33,7 +33,7 @@ class ServiceDetailScreen extends StatelessWidget {
     final currentUserEmail = FirebaseAuth.instance.currentUser?.email ?? '';
     final otherUserEmail = service.masterEmail;
 
-    // Простой способ создать уникальный chatId из двух email
+    // Уникальный chatId из двух email
     final sortedEmails = [currentUserEmail, otherUserEmail]..sort();
     final chatId = '${sortedEmails[0]}_${sortedEmails[1]}';
 
@@ -110,25 +110,46 @@ class ServiceDetailScreen extends StatelessWidget {
       ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: ElevatedButton.icon(
-          icon: const Icon(Icons.chat),
-          label: const Text('Написать исполнителю'),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ChatScreen(
-                  key: UniqueKey(),
-                  chatId: chatId,
-                  currentUserEmail: currentUserEmail,
-                ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ElevatedButton.icon(
+              icon: const Icon(Icons.person),
+              label: const Text('Профиль исполнителя'),
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  '/performer_profile',
+                  arguments: service.masterId,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                textStyle: const TextStyle(fontSize: 16),
               ),
-            );
-          },
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            textStyle: const TextStyle(fontSize: 16),
-          ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.chat),
+              label: const Text('Написать исполнителю'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatScreen(
+                      key: UniqueKey(),
+                      chatId: chatId,
+                      currentUserEmail: currentUserEmail,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                textStyle: const TextStyle(fontSize: 16),
+              ),
+            ),
+          ],
         ),
       ),
     );
