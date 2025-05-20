@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:agregatorapp/screens/services_map_screen.dart';
-
 
 class HomeScreen extends StatelessWidget {
   final String userId;
@@ -21,12 +19,11 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Агрегатор услуг'),
+        title: const Text('Агрегатор услуг'),
         actions: [
           IconButton(
-            icon: Icon(Icons.logout),
+            icon: const Icon(Icons.logout),
             onPressed: () async {
-              // Выход из Firebase Auth
               await FirebaseAuth.instance.signOut();
               Navigator.pushReplacementNamed(context, '/');
             },
@@ -40,80 +37,76 @@ class HomeScreen extends StatelessWidget {
           children: [
             Row(
               children: [
-                if (userAvatarUrl.isNotEmpty)
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundImage: NetworkImage(userAvatarUrl),
-                  )
-                else
-                  CircleAvatar(
-                    radius: 30,
-                    child: Icon(Icons.person, size: 30),
-                  ),
-                SizedBox(width: 16),
+                CircleAvatar(
+                  radius: 30,
+                  backgroundImage:
+                      userAvatarUrl.isNotEmpty ? NetworkImage(userAvatarUrl) : null,
+                  child: userAvatarUrl.isEmpty ? const Icon(Icons.person, size: 30) : null,
+                ),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Text(
                     'Здравствуйте, $userName!',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 8),
-            Text(
-              userEmail,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[700],
-              ),
-            ),
-            SizedBox(height: 20),
-            Text(
+            const SizedBox(height: 8),
+            Text(userEmail, style: TextStyle(fontSize: 16, color: Colors.grey[700])),
+            const SizedBox(height: 20),
+            const Text(
               'Что вы хотите сделать?',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
             ),
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
             ElevatedButton.icon(
-              icon: Icon(Icons.search),
-              label: Text('Перейти в каталог услуг'),
+              icon: const Icon(Icons.search),
+              label: const Text('Перейти в каталог услуг'),
               onPressed: () {
                 Navigator.pushNamed(context, '/catalog');
               },
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             ElevatedButton.icon(
-              icon: Icon(Icons.add),
-              label: Text('Добавить услугу'),
+              icon: const Icon(Icons.add),
+              label: const Text('Добавить услугу'),
               onPressed: () {
                 Navigator.pushNamed(context, '/add_service');
               },
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             ElevatedButton.icon(
-              icon: Icon(Icons.chat),
-              label: Text('Перейти к чатам'),
+              icon: const Icon(Icons.chat),
+              label: const Text('Перейти к чатам'),
               onPressed: () {
                 Navigator.pushNamed(context, '/chat_list');
               },
             ),
-SizedBox(height: 10),
+            const SizedBox(height: 10),
             ElevatedButton.icon(
-  icon: Icon(Icons.map),
-  label: Text('Услуги на карте'),
-  onPressed: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => ServicesMapScreen()),
-    );
-  },
-),
-
+              icon: const Icon(Icons.map),
+              label: const Text('Услуги на карте'),
+              onPressed: () {
+                Navigator.pushNamed(context, '/map');
+              },
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.work),
+              label: const Text('Мои работы'),
+              onPressed: () {
+                Navigator.pushNamed(context, '/my_jobs');
+              },
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.people),
+              label: const Text('Отклики'),
+              onPressed: () {
+                Navigator.pushNamed(context, '/responses');
+              },
+            ),
           ],
         ),
       ),

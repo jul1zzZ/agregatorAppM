@@ -10,6 +10,9 @@ import 'screens/service_catalog_screen.dart';
 import 'screens/addedit_service_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/chat_list_screen.dart';
+import 'screens/my_jobs_screen.dart';
+import 'screens/responses_screen.dart';
+import 'screens/services_map_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,12 +40,14 @@ class MyApp extends StatelessWidget {
         '/performer_profile': (context) => PerformerProfileScreen(
       performerId: ModalRoute.of(context)!.settings.arguments as String,
     ),
+       '/map': (context) => ServicesMapScreen(),
+        '/my_jobs': (context) => MyJobsScreen(), 
+        '/responses': (context) => ResponsesScreen(), 
       },
     );
   }
 }
 
-// Этот виджет проверяет, залогинен ли пользователь, и загружает данные для HomeScreen
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
