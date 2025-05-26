@@ -7,15 +7,44 @@ class RegisterScreen extends StatefulWidget {
   _RegisterScreenState createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _nameController = TextEditingController();
+class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProviderStateMixin {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
 
   bool _isLoading = false;
+
+  late AnimationController _animationController;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
+    ));
+
+    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeIn,
+    ));
+
+    _animationController.forward();
+  }
 
   Future<void> _register() async {
     final email = _emailController.text.trim();
@@ -24,7 +53,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (email.isEmpty || password.isEmpty || name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Пожалуйста, заполните все поля')),
+        const SnackBar(content: Text('Пожалуйста, заполните все поля')),
       );
       return;
     }
@@ -32,7 +61,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Регистрация пользователя в Firebase Auth
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -41,34 +69,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final user = userCredential.user;
       if (user == null) throw FirebaseAuthException(code: 'UNKNOWN', message: 'Не удалось создать пользователя');
 
-      // Обновляем displayName в Firebase Auth
       await user.updateDisplayName(name);
 
-      // Создаём профиль пользователя в Firestore
       await _firestore.collection('users').doc(user.uid).set({
         'createdAt': FieldValue.serverTimestamp(),
         'email': email,
         'name': name,
-        'profileImageUrl': '', // Можно добавить поле для загрузки фото позже
+        'profileImageUrl': '',
         'rating': 0,
         'reviewCount': 0,
-        'userType': 'client', // или 'master', в зависимости от логики
+        'userType': 'client',
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Регистрация успешна!')),
+        const SnackBar(content: Text('Регистрация успешна!')),
       );
 
-      Future.delayed(Duration(seconds: 2), () {
-        Navigator.pop(context); // Возврат на экран входа
+      Future.delayed(const Duration(seconds: 2), () {
+        Navigator.pop(context);
       });
-    } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка регистрации: ${e.message}')),
-      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Произошла ошибка: $e')),
+        SnackBar(content: Text('Ошибка регистрации: $e')),
       );
     } finally {
       setState(() => _isLoading = false);
@@ -80,46 +102,121 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Регистрация')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Center(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: _nameController,
-                  decoration: InputDecoration(labelText: 'Имя'),
+      backgroundColor: Colors.black, // для соответствия login
+      appBar: AppBar(
+        title: const Text('Регистрация'),
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        centerTitle: true,
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Hero(
+                tag: 'app_logo',
+                child: Icon(
+                  Icons.miscellaneous_services_rounded,
+                  color: Colors.white,
+                  size: 72,
                 ),
-                SizedBox(height: 12),
-                TextField(
-                  controller: _emailController,
-                  decoration: InputDecoration(labelText: 'Email'),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                SizedBox(height: 12),
-                TextField(
-                  controller: _passwordController,
-                  decoration: InputDecoration(labelText: 'Пароль'),
-                  obscureText: true,
-                ),
-                SizedBox(height: 20),
-                _isLoading
-                    ? CircularProgressIndicator()
-                    : ElevatedButton(
-                        onPressed: _register,
-                        child: Text('Зарегистрироваться'),
+              ),
+              const SizedBox(height: 24),
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: Column(
+                    children: [
+                      _buildTextField(
+                        controller: _nameController,
+                        label: 'Имя',
+                        icon: Icons.person,
                       ),
-              ],
-            ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _emailController,
+                        label: 'Email',
+                        icon: Icons.email,
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _passwordController,
+                        label: 'Пароль',
+                        icon: Icons.lock,
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 24),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        child: _isLoading
+                            ? const CircularProgressIndicator()
+                            : SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  key: const ValueKey('register_button'),
+                                  onPressed: _register,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blueAccent,
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Зарегистрироваться',
+                                    style: TextStyle(fontSize: 16, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool obscureText = false,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white70),
+        prefixIcon: Icon(icon, color: Colors.white),
+        filled: true,
+        fillColor: Colors.white10,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.white24),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.white),
         ),
       ),
     );
