@@ -5,12 +5,20 @@ import 'package:agregatorapp/models/message_model.dart';
 class ChatScreen extends StatefulWidget {
   final String chatId;
   final String currentUserEmail;
+  final ThemeData themeData;
+
+  final bool isDarkTheme; // <- добавить
+  final VoidCallback onToggleTheme; // <- добавить
 
   const ChatScreen({
     Key? key,
     required this.chatId,
     required this.currentUserEmail,
+    required this.themeData,
+    required this.isDarkTheme, // <- обязательно
+    required this.onToggleTheme, // <- обязательно
   }) : super(key: key);
+
 
   @override
   _ChatScreenState createState() => _ChatScreenState();
@@ -91,7 +99,6 @@ class _ChatScreenState extends State<ChatScreen> {
     final chatRef = FirebaseFirestore.instance.collection('chats').doc(widget.chatId);
     final chatDoc = await chatRef.get();
 
-    // Если чат ещё не существует — создаём
     if (!chatDoc.exists) {
       if (otherUserEmail == null || otherUserEmail!.isEmpty) return;
 
@@ -128,14 +135,12 @@ class _ChatScreenState extends State<ChatScreen> {
         'lastUpdated': FieldValue.serverTimestamp(),
       });
     } else {
-      // Обновляем lastMessage
       await chatRef.update({
         'lastMessage': text,
         'lastUpdated': FieldValue.serverTimestamp(),
       });
     }
 
-    // Добавляем сообщение
     await chatRef.collection('messages').add(message);
 
     _controller.clear();
@@ -143,29 +148,38 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = widget.themeData; // используем переданную тему
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 0,
         title: Row(
           children: [
             if (otherUserAvatarUrl.isNotEmpty)
               CircleAvatar(
                 backgroundImage: NetworkImage(otherUserAvatarUrl),
-                radius: 18,
+                radius: 20,
               )
             else
-              const CircleAvatar(
-                child: Icon(Icons.person),
-                radius: 18,
+              CircleAvatar(
+                backgroundColor: theme.colorScheme.onSurface.withOpacity(0.1),
+                radius: 20,
+                child: Icon(Icons.person, color: theme.colorScheme.onSurface),
               ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 otherUserName.isNotEmpty ? otherUserName : 'Чат',
+                style: theme.textTheme.titleMedium,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
         ),
+        backgroundColor: theme.colorScheme.surface,
+        foregroundColor: theme.colorScheme.onSurface,
+        elevation: 1,
       ),
       body: Column(
         children: [
@@ -178,7 +192,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   .orderBy('timestamp')
                   .snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                if (!snapshot.hasData) {
+                  return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
+                }
 
                 final messages = snapshot.data!.docs.map((doc) {
                   final data = doc.data() as Map<String, dynamic>;
@@ -186,21 +202,39 @@ class _ChatScreenState extends State<ChatScreen> {
                 }).toList();
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final msg = messages[index];
                     final isMe = msg.senderEmail == widget.currentUserEmail;
+
+                    final bgColor = isMe
+                        ? theme.colorScheme.primary.withOpacity(0.15)
+                        : theme.colorScheme.surfaceVariant;
+                    final textColor = isMe
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface;
+
+                    final borderRadius = BorderRadius.only(
+                      topLeft: const Radius.circular(16),
+                      topRight: const Radius.circular(16),
+                      bottomLeft: Radius.circular(isMe ? 16 : 4),
+                      bottomRight: Radius.circular(isMe ? 4 : 16),
+                    );
+
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
-                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 18),
+                        margin: const EdgeInsets.symmetric(vertical: 6),
                         decoration: BoxDecoration(
-                          color: isMe ? Colors.blue[200] : Colors.grey[300],
-                          borderRadius: BorderRadius.circular(16),
+                          color: bgColor,
+                          borderRadius: borderRadius,
                         ),
-                        child: Text(msg.text),
+                        child: Text(
+                          msg.text,
+                          style: theme.textTheme.bodyMedium?.copyWith(color: textColor),
+                        ),
                       ),
                     );
                   },
@@ -210,7 +244,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           const Divider(height: 1),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
             child: Row(
               children: [
                 Expanded(
@@ -218,23 +252,37 @@ class _ChatScreenState extends State<ChatScreen> {
                     controller: _controller,
                     decoration: InputDecoration(
                       hintText: 'Введите сообщение',
+                      hintStyle: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.5)),
+                      filled: true,
+                      fillColor: theme.colorScheme.surfaceVariant,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                     ),
+                    style: theme.textTheme.bodyMedium,
+                    textCapitalization: TextCapitalization.sentences,
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(Icons.send, color: Theme.of(context).primaryColor),
-                  onPressed: _sendMessage,
+                const SizedBox(width: 12),
+                Ink(
+                  decoration: ShapeDecoration(
+                    color: theme.colorScheme.primary,
+                    shape: const CircleBorder(),
+                  ),
+                  child: IconButton(
+                    icon: Icon(Icons.send, color: theme.colorScheme.onPrimary),
+                    onPressed: _sendMessage,
+                    tooltip: 'Отправить сообщение',
+                  ),
                 ),
               ],
             ),
           ),
         ],
       ),
+      backgroundColor: theme.colorScheme.background,
     );
   }
 }

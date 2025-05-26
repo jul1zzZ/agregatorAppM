@@ -5,6 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
+  final VoidCallback? onToggleTheme;
+  final bool? isDarkTheme;
+
+  const LoginScreen({super.key, this.onToggleTheme, this.isDarkTheme});
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
@@ -27,11 +32,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
     _animationController = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 800),
     );
 
     _slideAnimation = Tween<Offset>(
-      begin: Offset(0, 0.3),
+      begin: const Offset(0, 0.3),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _animationController,
@@ -60,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
       if (!userDoc.exists) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Профиль пользователя не найден.')),
+          const SnackBar(content: Text('Профиль пользователя не найден.')),
         );
         setState(() => _isLoading = false);
         return;
@@ -76,6 +81,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             userName: userData['name'] ?? '',
             userEmail: userData['email'] ?? '',
             userAvatarUrl: userData['profileImageUrl'] ?? '',
+onToggleTheme: widget.onToggleTheme ?? () {},
+            isDarkTheme: widget.isDarkTheme ?? false,
           ),
         ),
       );
@@ -102,8 +109,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
+    final isDark = widget.isDarkTheme ?? false;
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: isDark ? Colors.black : Colors.white,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32),
@@ -114,9 +122,23 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: IconButton(
+                      icon: Icon(
+                        isDark ? Icons.dark_mode : Icons.light_mode,
+                        color: isDark ? Colors.white : Colors.black,
+                      ),
+                      onPressed: widget.onToggleTheme,
+                    ),
+                  ),
                   Hero(
                     tag: 'app_logo',
-                    child: Icon(Icons.miscellaneous_services_rounded, size: 72, color: Colors.white),
+                    child: Icon(
+                      Icons.miscellaneous_services_rounded,
+                      size: 72,
+                      color: isDark ? Colors.white : Colors.black,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -124,13 +146,16 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     style: GoogleFonts.montserrat(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Войдите, чтобы продолжить',
-                    style: GoogleFonts.montserrat(fontSize: 16, color: Colors.white70),
+                    style: GoogleFonts.montserrat(
+                      fontSize: 16,
+                      color: isDark ? Colors.white70 : Colors.black54,
+                    ),
                   ),
                   const SizedBox(height: 32),
 
@@ -139,6 +164,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     label: 'Email',
                     icon: Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress,
+                    isDark: isDark,
                   ),
                   const SizedBox(height: 16),
 
@@ -147,6 +173,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     label: 'Пароль',
                     icon: Icons.lock_outline,
                     obscureText: true,
+                    isDark: isDark,
                   ),
                   const SizedBox(height: 24),
 
@@ -174,10 +201,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Нет аккаунта?', style: TextStyle(color: Colors.white70)),
+                      Text('Нет аккаунта?', style: TextStyle(color: isDark ? Colors.white70 : Colors.black54)),
                       TextButton(
                         onPressed: () => Navigator.pushNamed(context, '/register'),
-                        child: Text('Регистрация'),
+                        child: const Text('Регистрация'),
                       ),
                     ],
                   ),
@@ -200,26 +227,27 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     required IconData icon,
     bool obscureText = false,
     TextInputType keyboardType = TextInputType.text,
+    required bool isDark,
   }) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: isDark ? Colors.white : Colors.black),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Colors.white70),
-        prefixIcon: Icon(icon, color: Colors.white),
+        labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+        prefixIcon: Icon(icon, color: isDark ? Colors.white : Colors.black),
         filled: true,
-        fillColor: Colors.white10,
+        fillColor: isDark ? Colors.white10 : Colors.black12,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white24),
+          borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white),
+          borderSide: BorderSide(color: isDark ? Colors.white : Colors.black),
         ),
       ),
     );

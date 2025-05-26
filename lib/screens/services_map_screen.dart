@@ -19,6 +19,15 @@ class Service {
 }
 
 class ServicesMapScreen extends StatefulWidget {
+  final bool isDarkTheme;
+  final VoidCallback onToggleTheme;
+
+  const ServicesMapScreen({
+    Key? key,
+    required this.isDarkTheme,
+    required this.onToggleTheme,
+  }) : super(key: key);
+
   @override
   _ServicesMapScreenState createState() => _ServicesMapScreenState();
 }
@@ -112,9 +121,18 @@ class _ServicesMapScreenState extends State<ServicesMapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = widget.isDarkTheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Услуги на карте'),
+        actions: [
+          IconButton(
+            icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+            onPressed: widget.onToggleTheme,
+            tooltip: isDark ? 'Светлая тема' : 'Тёмная тема',
+          ),
+        ],
       ),
       body: Column(
         children: [

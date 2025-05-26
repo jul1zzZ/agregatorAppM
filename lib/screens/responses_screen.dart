@@ -3,50 +3,67 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ResponsesScreen extends StatelessWidget {
-  const ResponsesScreen({super.key});
+  final bool isDarkTheme;
+  final VoidCallback onToggleTheme;
+
+  const ResponsesScreen({
+    Key? key,
+    required this.isDarkTheme,
+    required this.onToggleTheme,
+  }) : super(key: key);
 
   Future<void> markJobAsCompleted(
-  BuildContext context,
-  String serviceId,
-  String responseId,
-  Map<String, dynamic> serviceData,
-  Map<String, dynamic> responseData,
-) async {
-  final archiveServiceRef = FirebaseFirestore.instance.collection('services_archive').doc(serviceId);
-  final archiveResponseRef = FirebaseFirestore.instance.collection('responses_archive').doc(responseId);
-  final serviceRef = FirebaseFirestore.instance.collection('services').doc(serviceId);
-  final responseRef = FirebaseFirestore.instance.collection('responses').doc(responseId);
+    BuildContext context,
+    String serviceId,
+    String responseId,
+    Map<String, dynamic> serviceData,
+    Map<String, dynamic> responseData,
+  ) async {
+    final archiveServiceRef =
+        FirebaseFirestore.instance.collection('services_archive').doc(serviceId);
+    final archiveResponseRef =
+        FirebaseFirestore.instance.collection('responses_archive').doc(responseId);
+    final serviceRef = FirebaseFirestore.instance.collection('services').doc(serviceId);
+    final responseRef = FirebaseFirestore.instance.collection('responses').doc(responseId);
 
-  try {
-    // Копируем услугу в архив
-    await archiveServiceRef.set(serviceData);
+    try {
+      // Копируем услугу в архив
+      await archiveServiceRef.set(serviceData);
 
-    // Копируем отклик в архив с обновлением статуса
-    final updatedResponseData = Map<String, dynamic>.from(responseData);
-    updatedResponseData['status'] = 'done';
-    await archiveResponseRef.set(updatedResponseData);
+      // Копируем отклик в архив с обновлением статуса
+      final updatedResponseData = Map<String, dynamic>.from(responseData);
+      updatedResponseData['status'] = 'done';
+      await archiveResponseRef.set(updatedResponseData);
 
-    // Удаляем из основных коллекций
-    await serviceRef.delete();
-    await responseRef.delete(); // <-- ЭТО ВАЖНО!
+      // Удаляем из основных коллекций
+      await serviceRef.delete();
+      await responseRef.delete();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Работа завершена и перемещена в архив')),
-    );
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Ошибка при завершении: $e')),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Работа завершена и перемещена в архив')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка при завершении: $e')),
+      );
+    }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
     final currentUserId = FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Отклики')),
+      appBar: AppBar(
+        title: const Text('Отклики'),
+        actions: [
+          IconButton(
+            icon: Icon(isDarkTheme ? Icons.light_mode : Icons.dark_mode),
+            onPressed: onToggleTheme,
+            tooltip: isDarkTheme ? 'Светлая тема' : 'Тёмная тема',
+          ),
+        ],
+      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('responses')
@@ -54,8 +71,8 @@ class ResponsesScreen extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          final docs = snapshot.data!.docs;
 
+          final docs = snapshot.data!.docs;
           if (docs.isEmpty) return const Center(child: Text('Пока нет откликов'));
 
           return ListView.builder(
@@ -82,7 +99,6 @@ class ResponsesScreen extends StatelessWidget {
                     subtitle: Text(accepted ? 'Принят' : 'Ожидает решения'),
                     trailing: accepted
                         ? ElevatedButton(
-                            child: const Text('Работа выполнена'),
                             onPressed: () {
                               if (serviceData != null) {
                                 markJobAsCompleted(context, serviceId, doc.id, serviceData, data);
@@ -92,15 +108,16 @@ class ResponsesScreen extends StatelessWidget {
                                 );
                               }
                             },
+                            child: const Text('Работа выполнена'),
                           )
                         : ElevatedButton(
-                            child: const Text('Принять'),
                             onPressed: () {
                               FirebaseFirestore.instance
                                   .collection('responses')
                                   .doc(doc.id)
                                   .update({'accepted': true});
                             },
+                            child: const Text('Принять'),
                           ),
                   );
                 },

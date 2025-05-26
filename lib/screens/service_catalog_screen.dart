@@ -5,6 +5,14 @@ import 'package:agregatorapp/models/service_model.dart';
 import 'package:agregatorapp/screens/service_detail_screen.dart';
 
 class ServiceCatalogScreen extends StatefulWidget {
+  final VoidCallback? onToggleTheme;
+  final bool isDarkTheme;
+
+  ServiceCatalogScreen({
+    this.onToggleTheme,
+    this.isDarkTheme = false, // дефолтное значение
+  });
+
   @override
   _ServiceCatalogScreenState createState() => _ServiceCatalogScreenState();
 }
@@ -16,10 +24,10 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
   String selectedCategory = 'all';
 
   double minPrice = 0;
-  double maxPrice = 20000; // текущий выбранный максимум цены
-  double maxPriceLimit = 20000; // динамический максимум для слайдера цены
+  double maxPrice = 20000;
+  double maxPriceLimit = 20000;
 
-  double maxDistanceKm = 100; // максимум 100 км
+  double maxDistanceKm = 100;
   Position? _currentPosition;
 
   final TextEditingController _searchController = TextEditingController();
@@ -50,14 +58,12 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
     final snapshot = await FirebaseFirestore.instance.collection('services').get();
     final services = snapshot.docs.map((doc) => Service.fromFirestore(doc)).toList();
 
-    // Найдём максимальную цену среди загруженных услуг
     double foundMaxPrice = 0;
     for (var s in services) {
-      final double price = (s.price as num).toDouble(); // Явное приведение к double
+      final double price = (s.price as num).toDouble();
       if (price > foundMaxPrice) foundMaxPrice = price;
     }
 
-    // Если максимум слишком маленький, установим минимум для слайдера (например, 1000)
     final double priceSliderMax = foundMaxPrice > 1000 ? foundMaxPrice : 1000;
 
     setState(() {
@@ -72,7 +78,7 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
     List<Service> results = allServices.where((service) {
       final matchesCategory = selectedCategory == 'all' || service.category == selectedCategory;
 
-      final double price = (service.price as num).toDouble(); // Явное приведение к double
+      final double price = (service.price as num).toDouble();
       final matchesPrice = price >= minPrice && price <= maxPrice;
 
       final matchesSearch = service.title.toLowerCase().contains(searchKeyword.toLowerCase()) ||
@@ -114,20 +120,46 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Каталог услуг')),
+      backgroundColor: colorScheme.background,
+      appBar: AppBar(
+        title: const Text('Каталог услуг'),
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.brightness_6, color: colorScheme.onPrimary),
+            tooltip: 'Переключить тему',
+            onPressed: widget.onToggleTheme,
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(16),
             child: Column(
               children: [
                 TextField(
                   controller: _searchController,
-                  decoration: const InputDecoration(
+                  style: theme.textTheme.bodyMedium,
+                  decoration: InputDecoration(
                     labelText: 'Поиск по ключевым словам',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
+                    labelStyle: theme.textTheme.labelLarge?.copyWith(color: colorScheme.onSurface.withOpacity(0.7)),
+                    prefixIcon: Icon(Icons.search, color: colorScheme.onSurface.withOpacity(0.7)),
+                    filled: true,
+                    fillColor: colorScheme.surfaceVariant,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: colorScheme.primary),
+                    ),
                   ),
                   onChanged: (value) {
                     setState(() {
@@ -136,13 +168,28 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
                     });
                   },
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         value: selectedCategory,
-                        decoration: const InputDecoration(labelText: 'Категория'),
+                        dropdownColor: colorScheme.surfaceVariant,
+                        style: theme.textTheme.bodyMedium,
+                        decoration: InputDecoration(
+                          labelText: 'Категория',
+                          labelStyle: theme.textTheme.labelLarge?.copyWith(color: colorScheme.onSurface.withOpacity(0.7)),
+                          filled: true,
+                          fillColor: colorScheme.surfaceVariant,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: colorScheme.primary),
+                          ),
+                        ),
                         onChanged: (value) {
                           setState(() {
                             selectedCategory = value!;
@@ -160,12 +207,20 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Цена:'),
-                          Expanded(
+                          Text('Макс. цена: ${maxPrice.toInt()}', style: theme.textTheme.bodySmall),
+                          SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              activeTrackColor: colorScheme.primary,
+                              inactiveTrackColor: colorScheme.onSurface.withOpacity(0.3),
+                              thumbColor: colorScheme.primary,
+                              overlayColor: colorScheme.primary.withOpacity(0.2),
+                              valueIndicatorColor: colorScheme.primary,
+                            ),
                             child: Slider(
                               min: 0,
                               max: maxPriceLimit,
@@ -185,12 +240,20 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 if (_currentPosition != null)
-                  Row(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Макс. расстояние:'),
-                      Expanded(
+                      Text('Макс. расстояние: ${maxDistanceKm.toInt()} км', style: theme.textTheme.bodySmall),
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: colorScheme.primary,
+                          inactiveTrackColor: colorScheme.onSurface.withOpacity(0.3),
+                          thumbColor: colorScheme.primary,
+                          overlayColor: colorScheme.primary.withOpacity(0.2),
+                          valueIndicatorColor: colorScheme.primary,
+                        ),
                         child: Slider(
                           min: 1,
                           max: 100,
@@ -210,29 +273,49 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: colorScheme.onSurface.withOpacity(0.2)),
           Expanded(
-            child: filteredServices.isEmpty
-                ? const Center(child: Text('Ничего не найдено'))
-                : ListView.builder(
-                    itemCount: filteredServices.length,
-                    itemBuilder: (context, index) {
-                      final service = filteredServices[index];
-                      return ListTile(
-                        title: Text(service.title),
-                        subtitle: Text('${service.description} — \$${service.price}'),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ServiceDetailScreen(service: service),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
+  child: filteredServices.isEmpty
+      ? Center(
+          child: Text(
+            'Ничего не найдено',
+            style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withOpacity(0.7)),
           ),
+        )
+      : ListView.builder(
+          itemCount: filteredServices.length,
+          itemBuilder: (context, index) {
+            final service = filteredServices[index];
+            return Card(
+              color: colorScheme.surface,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: ListTile(
+                title: Text(service.title, style: theme.textTheme.bodyLarge),
+                subtitle: Text(
+                  '${service.description} — \$${service.price}',
+                  style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withOpacity(0.7)),
+                ),
+                trailing: Icon(Icons.arrow_forward_ios, color: colorScheme.primary, size: 16),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ServiceDetailScreen(
+                        service: service,
+                        themeData: Theme.of(context),
+                        isDarkTheme: widget.isDarkTheme,
+                        onToggleTheme: widget.onToggleTheme ?? () {},
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+),
+
         ],
       ),
     );

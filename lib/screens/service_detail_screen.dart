@@ -8,8 +8,17 @@ import 'package:agregatorapp/screens/chat_screen.dart';
 
 class ServiceDetailScreen extends StatelessWidget {
   final Service service;
+  final bool isDarkTheme;
+  final ThemeData themeData;
+  final VoidCallback onToggleTheme;
 
-  const ServiceDetailScreen({Key? key, required this.service}) : super(key: key);
+  const ServiceDetailScreen({
+    Key? key,
+    required this.service,
+    required this.isDarkTheme,
+    required this.themeData,
+    required this.onToggleTheme,
+  }) : super(key: key);
 
   String getCategoryLabel(String category) {
     switch (category) {
@@ -25,42 +34,38 @@ class ServiceDetailScreen extends StatelessWidget {
   }
 
   Future<void> sendResponse(BuildContext context, String userId, String chatId) async {
-  final responseRef = FirebaseFirestore.instance.collection('responses').doc(chatId);
-  final doc = await responseRef.get();
+    final responseRef = FirebaseFirestore.instance.collection('responses').doc(chatId);
+    final doc = await responseRef.get();
 
-  if (!doc.exists) {
-    // Получаем имя исполнителя (кто откликается)
-    final workerSnapshot = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-    final workerName = workerSnapshot.data()?['name'] ?? 'Исполнитель';
+    if (!doc.exists) {
+      final workerSnapshot = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      final workerName = workerSnapshot.data()?['name'] ?? 'Исполнитель';
 
-    // Получаем имя работодателя (владелец услуги)
-    final ownerSnapshot = await FirebaseFirestore.instance.collection('users').doc(service.masterId).get();
-    final ownerName = ownerSnapshot.data()?['name'] ?? 'Работодатель';
+      final ownerSnapshot = await FirebaseFirestore.instance.collection('users').doc(service.masterId).get();
+      final ownerName = ownerSnapshot.data()?['name'] ?? 'Работодатель';
 
-    await responseRef.set({
-      'chatId': chatId,
-      'serviceId': service.id,
-      'serviceTitle': service.title,
-      'ownerId': service.masterId,
-      'ownerName': ownerName,      // кешируем для отображения
-      'workerId': userId,
-      'workerName': workerName,    // кешируем для отображения
-      'status': 'pending',
-      'createdAt': Timestamp.now(),
-      'accepted': false,
-    });
+      await responseRef.set({
+        'chatId': chatId,
+        'serviceId': service.id,
+        'serviceTitle': service.title,
+        'ownerId': service.masterId,
+        'ownerName': ownerName,
+        'workerId': userId,
+        'workerName': workerName,
+        'status': 'pending',
+        'createdAt': Timestamp.now(),
+        'accepted': false,
+      });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Отклик отправлен!')),
-    );
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Вы уже откликнулись.')),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Отклик отправлен!')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Вы уже откликнулись.')),
+      );
+    }
   }
-}
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +80,15 @@ class ServiceDetailScreen extends StatelessWidget {
     final isOwner = service.masterId == currentUserId;
 
     return Scaffold(
-      appBar: AppBar(title: Text(service.title)),
+      appBar: AppBar(
+        title: Text(service.title),
+        actions: [
+          IconButton(
+            icon: Icon(isDarkTheme ? Icons.wb_sunny : Icons.nightlight_round),
+            onPressed: onToggleTheme,
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -152,9 +165,19 @@ class ServiceDetailScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => ChatScreen(chatId: chatId, currentUserEmail: currentUserEmail),
+                    builder: (_) => ChatScreen(
+                      chatId: chatId,
+                      currentUserEmail: currentUserEmail,
+                      themeData: Theme.of(context),
+                      isDarkTheme: Theme.of(context).brightness == Brightness.dark,
+                      onToggleTheme: () {
+                        // Здесь вызовите ваш метод переключения темы
+                        // Например, если он передаётся в родительский виджет — пробросьте его сюда
+                      },
+                    ),
                   ),
                 );
+
               },
             ),
             const SizedBox(height: 8),

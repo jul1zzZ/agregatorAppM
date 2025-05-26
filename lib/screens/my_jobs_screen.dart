@@ -4,7 +4,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rxdart/rxdart.dart';
 
 class MyJobsScreen extends StatelessWidget {
-  const MyJobsScreen({super.key});
+  final bool isDarkTheme;
+  final VoidCallback onToggleTheme;
+
+  const MyJobsScreen({
+    Key? key,
+    required this.isDarkTheme,
+    required this.onToggleTheme,
+  }) : super(key: key);
 
   Stream<List<QueryDocumentSnapshot>> _activeResponsesStream(String userId) {
     return FirebaseFirestore.instance
@@ -39,7 +46,16 @@ class MyJobsScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Мои работы')),
+      appBar: AppBar(
+        title: const Text('Мои работы'),
+        actions: [
+          IconButton(
+            icon: Icon(isDarkTheme ? Icons.light_mode : Icons.dark_mode),
+            onPressed: onToggleTheme,
+            tooltip: isDarkTheme ? 'Светлая тема' : 'Тёмная тема',
+          ),
+        ],
+      ),
       body: StreamBuilder<List<QueryDocumentSnapshot>>(
         stream: combinedStream,
         builder: (context, snapshot) {
@@ -69,7 +85,10 @@ class MyJobsScreen extends StatelessWidget {
                 subtitle: Text('Работодатель: ${data['ownerName'] ?? 'Неизвестен'}'),
                 trailing: isDone
                     ? const Icon(Icons.check_circle, color: Colors.green)
-                    : const Text('В процессе', style: TextStyle(color: Colors.orange)),
+                    : const Text(
+                        'В процессе',
+                        style: TextStyle(color: Colors.orange),
+                      ),
               );
             },
           );

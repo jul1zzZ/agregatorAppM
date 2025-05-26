@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'screens/performer_profile_screen.dart';
 import 'screens/forgot_passwd_screen.dart';
 import 'screens/login_screen.dart';
@@ -20,36 +21,108 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool isDarkTheme = false;
+
+  void toggleTheme() {
+    setState(() {
+      isDarkTheme = !isDarkTheme;
+    });
+  }
+
+  // Функция для удобной передачи темы и callback'а в маршруты,
+  // чтобы не дублировать каждый раз параметры в навигации.
+  Route<dynamic> _generateRoute(RouteSettings settings) {
+    switch (settings.name) {
+      case '/register':
+        return MaterialPageRoute(builder: (_) =>  RegisterScreen());
+      case '/forgot_password':
+        return MaterialPageRoute(builder: (_) =>  ForgotPasswordScreen());
+      case '/catalog':
+        return MaterialPageRoute(
+          builder: (_) => ServiceCatalogScreen(
+            isDarkTheme: isDarkTheme,
+            onToggleTheme: toggleTheme,
+          ),
+        );
+      case '/add_service':
+        return MaterialPageRoute(builder: (_) => const AddEditServiceScreen());
+      case '/chat_list':
+        return MaterialPageRoute(builder: (_) =>  ChatListScreen(
+          isDarkTheme: isDarkTheme,
+          onToggleTheme: toggleTheme,
+        ));
+      case '/performer_profile':
+  final performerId = settings.arguments as String;
+  return MaterialPageRoute(
+    builder: (_) => PerformerProfileScreen(
+      performerId: performerId,
+      isDarkTheme: isDarkTheme,
+      onToggleTheme: toggleTheme,
+    ),
+  );
+      case '/map':
+        return MaterialPageRoute(
+          builder: (_) => ServicesMapScreen(
+            isDarkTheme: isDarkTheme,
+            onToggleTheme: toggleTheme,
+          ),
+        );
+      case '/my_jobs':
+        return MaterialPageRoute(builder: (_) => MyJobsScreen(
+          isDarkTheme: isDarkTheme,
+          onToggleTheme: toggleTheme,
+        ));
+      case '/responses':
+        return MaterialPageRoute(builder: (_) => ResponsesScreen(
+          isDarkTheme: isDarkTheme,
+          onToggleTheme: toggleTheme,
+        ));
+      default:
+        return MaterialPageRoute(builder: (_) => const LoginScreen());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Агрегатор услуг',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
+      theme: ThemeData.light().copyWith(
+        primaryColor: Colors.blue,
+        appBarTheme: const AppBarTheme(backgroundColor: Colors.blue),
       ),
-      home: const AuthWrapper(),
-      routes: {
-        '/register': (context) => RegisterScreen(),
-        '/forgot_password': (context) => ForgotPasswordScreen(),
-        '/catalog': (context) => ServiceCatalogScreen(),
-        '/add_service': (context) => AddEditServiceScreen(),
-        '/chat_list': (context) => const ChatListScreen(),
-        '/performer_profile': (context) => PerformerProfileScreen(
-      performerId: ModalRoute.of(context)!.settings.arguments as String,
-    ),
-       '/map': (context) => ServicesMapScreen(),
-        '/my_jobs': (context) => MyJobsScreen(), 
-        '/responses': (context) => ResponsesScreen(), 
-      },
+      darkTheme: ThemeData.dark().copyWith(
+        primaryColor: Colors.blueAccent,
+        appBarTheme: const AppBarTheme(backgroundColor: Colors.black),
+        scaffoldBackgroundColor: Colors.black,
+      ),
+      themeMode: isDarkTheme ? ThemeMode.dark : ThemeMode.light,
+      home: AuthWrapper(
+        onToggleTheme: toggleTheme,
+        isDarkTheme: isDarkTheme,
+      ),
+      onGenerateRoute: _generateRoute,
+      // routes можно убрать, чтобы избежать конфликтов с onGenerateRoute
     );
   }
 }
 
 class AuthWrapper extends StatefulWidget {
-  const AuthWrapper({super.key});
+  final VoidCallback onToggleTheme;
+  final bool isDarkTheme;
+
+  const AuthWrapper({
+    super.key,
+    required this.onToggleTheme,
+    required this.isDarkTheme,
+  });
 
   @override
   State<AuthWrapper> createState() => _AuthWrapperState();
@@ -70,20 +143,17 @@ class _AuthWrapperState extends State<AuthWrapper> {
     firebaseUser = FirebaseAuth.instance.currentUser;
 
     if (firebaseUser == null) {
-      // Если не залогинен, показываем LoginScreen
       setState(() {
         loading = false;
       });
       return;
     }
 
-    // Берём данные пользователя из Firestore, коллекция 'users', документ - uid
     final doc = await FirebaseFirestore.instance.collection('users').doc(firebaseUser!.uid).get();
 
     if (doc.exists) {
       userData = doc.data();
     } else {
-      // Если данных нет, заполним по умолчанию из FirebaseUser
       userData = {
         'userName': firebaseUser!.displayName ?? 'Пользователь',
         'userEmail': firebaseUser!.email ?? '',
@@ -107,16 +177,19 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
 
     if (firebaseUser == null) {
-      // Пользователь не залогинен — показываем экран логина
-      return LoginScreen();
+      return LoginScreen(
+        onToggleTheme: widget.onToggleTheme,
+        isDarkTheme: widget.isDarkTheme,
+      );
     }
 
-    // Пользователь залогинен — передаём данные в HomeScreen
     return HomeScreen(
       userId: firebaseUser!.uid,
       userName: userData?['userName'] ?? 'Пользователь',
       userEmail: userData?['userEmail'] ?? '',
       userAvatarUrl: userData?['userAvatarUrl'] ?? '',
+      onToggleTheme: widget.onToggleTheme,
+      isDarkTheme: widget.isDarkTheme,
     );
   }
 }

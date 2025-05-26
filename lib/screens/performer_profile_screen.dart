@@ -5,8 +5,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class PerformerProfileScreen extends StatefulWidget {
   final String performerId;
+  final bool isDarkTheme;
+  final VoidCallback onToggleTheme;
 
-  const PerformerProfileScreen({Key? key, required this.performerId}) : super(key: key);
+  const PerformerProfileScreen({
+    Key? key,
+    required this.performerId,
+    required this.isDarkTheme,
+    required this.onToggleTheme,
+  }) : super(key: key);
 
   @override
   State<PerformerProfileScreen> createState() => _PerformerProfileScreenState();
@@ -49,47 +56,49 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
 
     await showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Оставить отзыв'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(labelText: 'Комментарий'),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: const Text('Оставить отзыв'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(labelText: 'Комментарий'),
+              ),
+              const SizedBox(height: 10),
+              Text('Оценка:'),
+              Slider(
+                value: rating,
+                min: 1,
+                max: 5,
+                divisions: 4,
+                label: rating.toString(),
+                onChanged: (value) => setStateDialog(() => rating = value),
+              )
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
+            ElevatedButton(
+              onPressed: () async {
+                await FirebaseFirestore.instance.collection('reviews').add({
+                  'fromUserId': currentUserId,
+                  'toUserId': widget.performerId,
+                  'comment': controller.text,
+                  'rating': rating,
+                  'createdAt': Timestamp.now(),
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Отзыв оставлен')),
+                );
+                setState(() {});
+              },
+              child: const Text('Оставить'),
             ),
-            const SizedBox(height: 10),
-            Text('Оценка:'),
-            Slider(
-              value: rating,
-              min: 1,
-              max: 5,
-              divisions: 4,
-              label: rating.toString(),
-              onChanged: (value) => setState(() => rating = value),
-            )
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
-          ElevatedButton(
-            onPressed: () async {
-              await FirebaseFirestore.instance.collection('reviews').add({
-                'fromUserId': currentUserId,
-                'toUserId': widget.performerId,
-                'comment': controller.text,
-                'rating': rating,
-                'createdAt': Timestamp.now(),
-              });
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Отзыв оставлен')),
-              );
-              setState(() {});
-            },
-            child: const Text('Оставить'),
-          ),
-        ],
       ),
     );
   }
@@ -107,8 +116,20 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = widget.isDarkTheme;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Профиль исполнителя')),
+      appBar: AppBar(
+        title: const Text('Профиль исполнителя'),
+        actions: [
+          IconButton(
+            icon: Icon(isDark ? Icons.dark_mode : Icons.light_mode),
+            tooltip: isDark ? 'Светлая тема' : 'Тёмная тема',
+            onPressed: widget.onToggleTheme,
+          ),
+        ],
+      ),
       body: FutureBuilder(
         future: Future.wait([fetchUserData(), fetchUserServices(), fetchReviews()]),
         builder: (context, snapshot) {
@@ -151,7 +172,7 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Text(userData['bio'],
-                              style: TextStyle(fontSize: 16, color: Colors.grey[700])),
+                              style: TextStyle(fontSize: 16, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7))),
                         ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -198,6 +219,7 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
           );
         },
       ),
+      backgroundColor: theme.colorScheme.background,
     );
   }
 }

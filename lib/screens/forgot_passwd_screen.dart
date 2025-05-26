@@ -11,6 +11,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
   final TextEditingController _emailController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  // Новое: тема
+  bool _isDarkTheme = true;
+
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
@@ -70,13 +73,36 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = _isDarkTheme ? Colors.black : Colors.white;
+    final textColor = _isDarkTheme ? Colors.white : Colors.black87;
+    final inputFillColor = _isDarkTheme ? Colors.white10 : Colors.grey.shade200;
+    final inputBorderColor = _isDarkTheme ? Colors.white24 : Colors.grey.shade400;
+    final buttonColor = _isDarkTheme ? Colors.blueAccent : Colors.blue;
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: bgColor,
       appBar: AppBar(
         title: const Text('Восстановление пароля'),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
+        backgroundColor: bgColor,
+        foregroundColor: textColor,
         centerTitle: true,
+        actions: [
+          Row(
+            children: [
+              Icon(_isDarkTheme ? Icons.dark_mode : Icons.light_mode, color: textColor),
+              Switch(
+                value: _isDarkTheme,
+                onChanged: (value) {
+                  setState(() {
+                    _isDarkTheme = value;
+                  });
+                },
+                activeColor: Colors.blueAccent,
+                inactiveThumbColor: Colors.grey,
+              ),
+            ],
+          ),
+        ],
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -88,9 +114,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.lock_reset_rounded,
-                    color: Colors.white,
+                    color: textColor,
                     size: 72,
                   ),
                   const SizedBox(height: 24),
@@ -99,6 +125,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                     label: 'Email',
                     icon: Icons.email,
                     keyboardType: TextInputType.emailAddress,
+                    textColor: textColor,
+                    fillColor: inputFillColor,
+                    borderColor: inputBorderColor,
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
@@ -106,7 +135,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                     child: ElevatedButton(
                       onPressed: _resetPassword,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
+                        backgroundColor: buttonColor,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -133,26 +162,29 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     required IconData icon,
     bool obscureText = false,
     TextInputType keyboardType = TextInputType.text,
+    required Color textColor,
+    required Color fillColor,
+    required Color borderColor,
   }) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: textColor),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Colors.white70),
-        prefixIcon: Icon(icon, color: Colors.white),
+        labelStyle: TextStyle(color: textColor.withOpacity(0.7)),
+        prefixIcon: Icon(icon, color: textColor),
         filled: true,
-        fillColor: Colors.white10,
+        fillColor: fillColor,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white24),
+          borderSide: BorderSide(color: borderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white),
+          borderSide: BorderSide(color: textColor),
         ),
       ),
     );

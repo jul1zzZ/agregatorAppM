@@ -5,23 +5,46 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'chat_screen.dart';
 
 class ChatListScreen extends StatelessWidget {
-  const ChatListScreen({Key? key}) : super(key: key);
+  final bool isDarkTheme;
+  final VoidCallback onToggleTheme;
+
+  const ChatListScreen({
+    Key? key,
+    required this.isDarkTheme,
+    required this.onToggleTheme,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
+    final theme = Theme.of(context);
 
     if (currentUser == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Чаты')),
-        body: const Center(child: Text('Пользователь не авторизован')),
+        body: Center(
+          child: Text(
+            'Пользователь не авторизован',
+            style: theme.textTheme.bodyLarge,
+          ),
+        ),
       );
     }
 
     final currentUserEmail = currentUser.email ?? '';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Чаты')),
+      appBar: AppBar(
+        title: const Text('Чаты'),
+        backgroundColor: theme.appBarTheme.backgroundColor,
+        actions: [
+          IconButton(
+            icon: Icon(isDarkTheme ? Icons.light_mode : Icons.dark_mode),
+            onPressed: onToggleTheme,
+            tooltip: 'Сменить тему',
+          ),
+        ],
+      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('chats')
@@ -33,11 +56,18 @@ class ChatListScreen extends StatelessWidget {
           final chatDocs = snapshot.data!.docs;
 
           if (chatDocs.isEmpty) {
-            return const Center(child: Text('Нет активных чатов'));
+            return Center(
+              child: Text(
+                'Нет активных чатов',
+                style: theme.textTheme.bodyLarge,
+              ),
+            );
           }
 
-          return ListView.builder(
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
             itemCount: chatDocs.length,
+            separatorBuilder: (_, __) => Divider(color: theme.dividerColor),
             itemBuilder: (context, index) {
               final chat = chatDocs[index];
               final chatId = chat.id;
@@ -45,7 +75,6 @@ class ChatListScreen extends StatelessWidget {
               final participantsMap = Map<String, dynamic>.from(chat['participants'] ?? {});
               final participantsEmails = List<String>.from(chat['participantsEmails'] ?? []);
 
-              // Найти email собеседника
               final otherUserEmail = participantsEmails.firstWhere(
                 (email) => email != currentUserEmail,
                 orElse: () => '',
@@ -65,11 +94,19 @@ class ChatListScreen extends StatelessWidget {
                     ? CircleAvatar(
                         backgroundImage: NetworkImage(otherUserAvatarUrl),
                       )
-                    : const CircleAvatar(
-                        child: Icon(Icons.person),
+                    : CircleAvatar(
+                        backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
+                        child: Icon(Icons.person, color: theme.colorScheme.primary),
                       ),
-                title: Text(otherUserName),
-                subtitle: const Text('Нажмите, чтобы открыть'),
+                title: Text(
+                  otherUserName,
+                  style: theme.textTheme.titleMedium,
+                ),
+                subtitle: Text(
+                  'Нажмите, чтобы открыть',
+                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
+                ),
+                trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.push(
                     context,
@@ -77,6 +114,9 @@ class ChatListScreen extends StatelessWidget {
                       builder: (context) => ChatScreen(
                         chatId: chatId,
                         currentUserEmail: currentUserEmail,
+                        themeData: theme,  // Передаем тему, если нужно
+                        isDarkTheme: isDarkTheme,
+                        onToggleTheme: onToggleTheme,
                       ),
                     ),
                   );
