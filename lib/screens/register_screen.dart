@@ -3,6 +3,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RegisterScreen extends StatefulWidget {
+  final bool isDarkTheme;
+  final VoidCallback onToggleTheme;
+
+  const RegisterScreen({
+    Key? key,
+    required this.isDarkTheme,
+    required this.onToggleTheme,
+  }) : super(key: key);
+
   @override
   _RegisterScreenState createState() => _RegisterScreenState();
 }
@@ -16,9 +25,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   final _firestore = FirebaseFirestore.instance;
 
   bool _isLoading = false;
-
-  // Новое: хранение темы
-  bool _isDarkTheme = true;
 
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
@@ -111,12 +117,13 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
-    // В зависимости от темы меняем цвета
-    final bgColor = _isDarkTheme ? Colors.black : Colors.white;
-    final textColor = _isDarkTheme ? Colors.white : Colors.black87;
-    final inputFillColor = _isDarkTheme ? Colors.white10 : Colors.grey.shade200;
-    final inputBorderColor = _isDarkTheme ? Colors.white24 : Colors.grey.shade400;
-    final buttonColor = _isDarkTheme ? Colors.blueAccent : Colors.blue;
+    final isDarkTheme = widget.isDarkTheme;
+
+    final bgColor = isDarkTheme ? Colors.black : Colors.white;
+    final textColor = isDarkTheme ? Colors.white : Colors.black87;
+    final inputFillColor = isDarkTheme ? Colors.white10 : Colors.grey.shade200;
+    final inputBorderColor = isDarkTheme ? Colors.white24 : Colors.grey.shade400;
+    final buttonColor = isDarkTheme ? Colors.blueAccent : Colors.blue;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -125,24 +132,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         backgroundColor: bgColor,
         foregroundColor: textColor,
         centerTitle: true,
-        actions: [
-          // Добавляем переключатель темы в AppBar
-          Row(
-            children: [
-              Icon(_isDarkTheme ? Icons.dark_mode : Icons.light_mode, color: textColor),
-              Switch(
-                value: _isDarkTheme,
-                onChanged: (value) {
-                  setState(() {
-                    _isDarkTheme = value;
-                  });
-                },
-                activeColor: Colors.blueAccent,
-                inactiveThumbColor: Colors.grey,
-              ),
-            ],
-          ),
-        ],
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -210,7 +199,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child: Text(
+                                  child: const Text(
                                     'Зарегистрироваться',
                                     style: TextStyle(fontSize: 16, color: Colors.white),
                                   ),

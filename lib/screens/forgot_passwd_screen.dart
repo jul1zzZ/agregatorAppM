@@ -2,17 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
+  final bool isDarkTheme;
+  final VoidCallback onToggleTheme;
+
+  const ForgotPasswordScreen({
+    Key? key,
+    required this.isDarkTheme,
+    required this.onToggleTheme,
+  }) : super(key: key);
+
   @override
   _ForgotPasswordScreenState createState() => _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
-    with SingleTickerProviderStateMixin {
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _emailController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  // Новое: тема
-  bool _isDarkTheme = true;
 
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
@@ -73,11 +78,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = _isDarkTheme ? Colors.black : Colors.white;
-    final textColor = _isDarkTheme ? Colors.white : Colors.black87;
-    final inputFillColor = _isDarkTheme ? Colors.white10 : Colors.grey.shade200;
-    final inputBorderColor = _isDarkTheme ? Colors.white24 : Colors.grey.shade400;
-    final buttonColor = _isDarkTheme ? Colors.blueAccent : Colors.blue;
+    final isDarkTheme = widget.isDarkTheme;
+    final bgColor = isDarkTheme ? Colors.black : Colors.white;
+    final textColor = isDarkTheme ? Colors.white : Colors.black87;
+    final inputFillColor = isDarkTheme ? Colors.white10 : Colors.grey.shade200;
+    final inputBorderColor = isDarkTheme ? Colors.white24 : Colors.grey.shade400;
+    final buttonColor = isDarkTheme ? Colors.blueAccent : Colors.blue;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -86,23 +92,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
         backgroundColor: bgColor,
         foregroundColor: textColor,
         centerTitle: true,
-        actions: [
-          Row(
-            children: [
-              Icon(_isDarkTheme ? Icons.dark_mode : Icons.light_mode, color: textColor),
-              Switch(
-                value: _isDarkTheme,
-                onChanged: (value) {
-                  setState(() {
-                    _isDarkTheme = value;
-                  });
-                },
-                activeColor: Colors.blueAccent,
-                inactiveThumbColor: Colors.grey,
-              ),
-            ],
-          ),
-        ],
       ),
       body: Center(
         child: SingleChildScrollView(

@@ -18,33 +18,55 @@ import 'screens/services_map_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+class MyApp extends StatelessWidget {
+  final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  bool isDarkTheme = false;
+  MyApp({super.key});
 
   void toggleTheme() {
-    setState(() {
-      isDarkTheme = !isDarkTheme;
-    });
+    themeNotifier.value =
+        themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
   }
 
-  // Функция для удобной передачи темы и callback'а в маршруты,
-  // чтобы не дублировать каждый раз параметры в навигации.
-  Route<dynamic> _generateRoute(RouteSettings settings) {
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, themeMode, _) {
+        return MaterialApp(
+          title: 'Агрегатор услуг',
+          theme: ThemeData.light(),
+          darkTheme: ThemeData.dark(),
+          themeMode: themeMode,
+          home: AuthWrapper(
+            onToggleTheme: toggleTheme,
+            isDarkTheme: themeMode == ThemeMode.dark,
+          ),
+          onGenerateRoute: (settings) => _generateRoute(settings, themeMode == ThemeMode.dark),
+        );
+      },
+    );
+  }
+
+  Route<dynamic> _generateRoute(RouteSettings settings, bool isDarkTheme) {
     switch (settings.name) {
       case '/register':
-        return MaterialPageRoute(builder: (_) =>  RegisterScreen());
+        return MaterialPageRoute(
+          builder: (_) => RegisterScreen(
+            isDarkTheme: isDarkTheme,
+            onToggleTheme: toggleTheme,
+          ),
+        );
       case '/forgot_password':
-        return MaterialPageRoute(builder: (_) =>  ForgotPasswordScreen());
+        return MaterialPageRoute(
+          builder: (_) => ForgotPasswordScreen(
+            isDarkTheme: isDarkTheme,
+            onToggleTheme: toggleTheme,
+          ),
+        );
       case '/catalog':
         return MaterialPageRoute(
           builder: (_) => ServiceCatalogScreen(
@@ -53,21 +75,25 @@ class _MyAppState extends State<MyApp> {
           ),
         );
       case '/add_service':
-        return MaterialPageRoute(builder: (_) => const AddEditServiceScreen());
+        return MaterialPageRoute(
+          builder: (_) => const AddEditServiceScreen(),
+        );
       case '/chat_list':
-        return MaterialPageRoute(builder: (_) =>  ChatListScreen(
-          isDarkTheme: isDarkTheme,
-          onToggleTheme: toggleTheme,
-        ));
+        return MaterialPageRoute(
+          builder: (_) => ChatListScreen(
+            isDarkTheme: isDarkTheme,
+            onToggleTheme: toggleTheme,
+          ),
+        );
       case '/performer_profile':
-  final performerId = settings.arguments as String;
-  return MaterialPageRoute(
-    builder: (_) => PerformerProfileScreen(
-      performerId: performerId,
-      isDarkTheme: isDarkTheme,
-      onToggleTheme: toggleTheme,
-    ),
-  );
+        final performerId = settings.arguments as String;
+        return MaterialPageRoute(
+          builder: (_) => PerformerProfileScreen(
+            performerId: performerId,
+            isDarkTheme: isDarkTheme,
+            onToggleTheme: toggleTheme,
+          ),
+        );
       case '/map':
         return MaterialPageRoute(
           builder: (_) => ServicesMapScreen(
@@ -76,41 +102,27 @@ class _MyAppState extends State<MyApp> {
           ),
         );
       case '/my_jobs':
-        return MaterialPageRoute(builder: (_) => MyJobsScreen(
-          isDarkTheme: isDarkTheme,
-          onToggleTheme: toggleTheme,
-        ));
+        return MaterialPageRoute(
+          builder: (_) => MyJobsScreen(
+            isDarkTheme: isDarkTheme,
+            onToggleTheme: toggleTheme,
+          ),
+        );
       case '/responses':
-        return MaterialPageRoute(builder: (_) => ResponsesScreen(
-          isDarkTheme: isDarkTheme,
-          onToggleTheme: toggleTheme,
-        ));
+        return MaterialPageRoute(
+          builder: (_) => ResponsesScreen(
+            isDarkTheme: isDarkTheme,
+            onToggleTheme: toggleTheme,
+          ),
+        );
       default:
-        return MaterialPageRoute(builder: (_) => const LoginScreen());
+        return MaterialPageRoute(
+          builder: (_) => LoginScreen(
+            isDarkTheme: isDarkTheme,
+            onToggleTheme: toggleTheme,
+          ),
+        );
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Агрегатор услуг',
-      theme: ThemeData.light().copyWith(
-        primaryColor: Colors.blue,
-        appBarTheme: const AppBarTheme(backgroundColor: Colors.blue),
-      ),
-      darkTheme: ThemeData.dark().copyWith(
-        primaryColor: Colors.blueAccent,
-        appBarTheme: const AppBarTheme(backgroundColor: Colors.black),
-        scaffoldBackgroundColor: Colors.black,
-      ),
-      themeMode: isDarkTheme ? ThemeMode.dark : ThemeMode.light,
-      home: AuthWrapper(
-        onToggleTheme: toggleTheme,
-        isDarkTheme: isDarkTheme,
-      ),
-      onGenerateRoute: _generateRoute,
-      // routes можно убрать, чтобы избежать конфликтов с onGenerateRoute
-    );
   }
 }
 
@@ -143,43 +155,36 @@ class _AuthWrapperState extends State<AuthWrapper> {
     firebaseUser = FirebaseAuth.instance.currentUser;
 
     if (firebaseUser == null) {
-      setState(() {
-        loading = false;
-      });
+      setState(() => loading = false);
       return;
     }
 
-    final doc = await FirebaseFirestore.instance.collection('users').doc(firebaseUser!.uid).get();
+    final doc =
+        await FirebaseFirestore.instance.collection('users').doc(firebaseUser!.uid).get();
 
-    if (doc.exists) {
-      userData = doc.data();
-    } else {
-      userData = {
-        'userName': firebaseUser!.displayName ?? 'Пользователь',
-        'userEmail': firebaseUser!.email ?? '',
-        'userAvatarUrl': firebaseUser!.photoURL ?? '',
-      };
-    }
+    userData = doc.exists
+        ? doc.data()
+        : {
+            'userName': firebaseUser!.displayName ?? 'Пользователь',
+            'userEmail': firebaseUser!.email ?? '',
+            'userAvatarUrl': firebaseUser!.photoURL ?? '',
+          };
 
     if (mounted) {
-      setState(() {
-        loading = false;
-      });
+      setState(() => loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (firebaseUser == null) {
       return LoginScreen(
-        onToggleTheme: widget.onToggleTheme,
         isDarkTheme: widget.isDarkTheme,
+        onToggleTheme: widget.onToggleTheme,
       );
     }
 
@@ -188,8 +193,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
       userName: userData?['userName'] ?? 'Пользователь',
       userEmail: userData?['userEmail'] ?? '',
       userAvatarUrl: userData?['userAvatarUrl'] ?? '',
-      onToggleTheme: widget.onToggleTheme,
       isDarkTheme: widget.isDarkTheme,
+      onToggleTheme: widget.onToggleTheme,
     );
   }
 }
