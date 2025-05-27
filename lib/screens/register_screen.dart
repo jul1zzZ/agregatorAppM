@@ -166,7 +166,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                       _buildTextField(
                         controller: _emailController,
                         label: 'Email',
-                        icon: Icons.email,
+                        icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
                         textColor: textColor,
                         fillColor: inputFillColor,
@@ -176,7 +176,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                       _buildTextField(
                         controller: _passwordController,
                         label: 'Пароль',
-                        icon: Icons.lock,
+                        icon: Icons.lock_outline,
                         obscureText: true,
                         textColor: textColor,
                         fillColor: inputFillColor,

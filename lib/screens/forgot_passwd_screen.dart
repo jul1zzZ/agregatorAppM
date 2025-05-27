@@ -112,7 +112,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                   _buildTextField(
                     controller: _emailController,
                     label: 'Email',
-                    icon: Icons.email,
+                    icon: Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress,
                     textColor: textColor,
                     fillColor: inputFillColor,
