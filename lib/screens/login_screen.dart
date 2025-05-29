@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'home_screen.dart';
+import 'admin_panel_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback? onToggleTheme;
@@ -52,52 +53,75 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Future<void> _login() async {
-    setState(() => _isLoading = true);
-    try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+  setState(() => _isLoading = true);
+  try {
+    UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
 
-      final user = userCredential.user;
-      if (user == null) throw FirebaseAuthException(code: 'UNKNOWN', message: 'Не удалось войти');
+    final user = userCredential.user;
+    if (user == null) throw FirebaseAuthException(code: 'UNKNOWN', message: 'Не удалось войти');
 
-      final userDoc = await _firestore.collection('users').doc(user.uid).get();
-      if (!userDoc.exists) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Профиль пользователя не найден.')),
-        );
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      final userData = userDoc.data()!;
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => HomeScreen(
-            userId: user.uid,
-            userName: userData['name'] ?? '',
-            userEmail: userData['email'] ?? '',
-            userAvatarUrl: userData['profileImageUrl'] ?? '',
-onToggleTheme: widget.onToggleTheme ?? () {},
-            isDarkTheme: widget.isDarkTheme ?? false,
-          ),
-        ),
-      );
-    } on FirebaseAuthException catch (e) {
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    if (!userDoc.exists) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка авторизации: ${e.message}')),
+        const SnackBar(content: Text('Профиль пользователя не найден.')),
       );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: $e')),
-      );
-    } finally {
       setState(() => _isLoading = false);
+      return;
     }
+
+    final userData = userDoc.data()!;
+    final userType = userData['userType'] ?? 'client';
+
+    if (userData['isBlocked'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Вы были заблокированы администратором.')),
+      );
+      await _auth.signOut();
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    Widget nextScreen;
+
+    if (userType == 'admin') {
+      nextScreen = AdminPanelScreen(
+        userId: user.uid,
+        userName: userData['name'] ?? '',
+        userEmail: userData['email'] ?? '',
+        onToggleTheme: widget.onToggleTheme ?? () {},
+        isDarkTheme: widget.isDarkTheme ?? false,
+      );
+    } else {
+      nextScreen = HomeScreen(
+        userId: user.uid,
+        userName: userData['name'] ?? '',
+        userEmail: userData['email'] ?? '',
+        userAvatarUrl: userData['profileImageUrl'] ?? '',
+        onToggleTheme: widget.onToggleTheme ?? () {},
+        isDarkTheme: widget.isDarkTheme ?? false,
+      );
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => nextScreen),
+    );
+  } on FirebaseAuthException catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Ошибка авторизации: ${e.message}')),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Ошибка: $e')),
+    );
+  } finally {
+    setState(() => _isLoading = false);
   }
+}
+
 
   @override
   void dispose() {
