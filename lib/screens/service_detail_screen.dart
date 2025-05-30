@@ -10,15 +10,16 @@ class ServiceDetailScreen extends StatelessWidget {
   final Service service;
   final bool isDarkTheme;
   final ThemeData themeData;
-  final VoidCallback onToggleTheme;
+  final VoidCallback
+  onToggleTheme; // Уже не нужен, но оставлю на случай, если в будущем понадобится
 
   const ServiceDetailScreen({
-    Key? key,
+    super.key,
     required this.service,
     required this.isDarkTheme,
     required this.themeData,
     required this.onToggleTheme,
-  }) : super(key: key);
+  });
 
   String getCategoryLabel(String category) {
     switch (category) {
@@ -33,15 +34,29 @@ class ServiceDetailScreen extends StatelessWidget {
     }
   }
 
-  Future<void> sendResponse(BuildContext context, String userId, String chatId) async {
-    final responseRef = FirebaseFirestore.instance.collection('responses').doc(chatId);
+  Future<void> sendResponse(
+    BuildContext context,
+    String userId,
+    String chatId,
+  ) async {
+    final responseRef = FirebaseFirestore.instance
+        .collection('responses')
+        .doc(chatId);
     final doc = await responseRef.get();
 
     if (!doc.exists) {
-      final workerSnapshot = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      final workerSnapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
       final workerName = workerSnapshot.data()?['name'] ?? 'Исполнитель';
 
-      final ownerSnapshot = await FirebaseFirestore.instance.collection('users').doc(service.masterId).get();
+      final ownerSnapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(service.masterId)
+              .get();
       final ownerName = ownerSnapshot.data()?['name'] ?? 'Работодатель';
 
       await responseRef.set({
@@ -57,13 +72,13 @@ class ServiceDetailScreen extends StatelessWidget {
         'accepted': false,
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Отклик отправлен!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Отклик отправлен!')));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Вы уже откликнулись.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Вы уже откликнулись.')));
     }
   }
 
@@ -79,15 +94,19 @@ class ServiceDetailScreen extends StatelessWidget {
 
     final isOwner = service.masterId == currentUserId;
 
+    final bgColor = isDarkTheme ? Colors.black : Colors.white;
+    final textColor = isDarkTheme ? Colors.white : Colors.black87;
+    final cardColor = isDarkTheme ? Colors.grey[900]! : Colors.grey[100]!;
+
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
         title: Text(service.title),
-        actions: [
-          IconButton(
-            icon: Icon(isDarkTheme ? Icons.wb_sunny : Icons.nightlight_round),
-            onPressed: onToggleTheme,
-          ),
-        ],
+        backgroundColor: bgColor,
+        foregroundColor: textColor,
+        // Убрана кнопка переключения темы:
+        // actions: [ ... ],
+        elevation: 0,
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -105,37 +124,68 @@ class ServiceDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Описание:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text(service.description),
+                  Text(
+                    'Описание:',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(service.description, style: TextStyle(color: textColor)),
                   const SizedBox(height: 16),
-                  Text('Категория: ${getCategoryLabel(service.category)}'),
+                  Text(
+                    'Категория: ${getCategoryLabel(service.category)}',
+                    style: TextStyle(color: textColor),
+                  ),
                   const SizedBox(height: 8),
-                  Text('Цена: \$${service.price.toStringAsFixed(2)}'),
+                  Text(
+                    'Цена: \$${service.price.toStringAsFixed(2)}',
+                    style: TextStyle(color: textColor),
+                  ),
                   const SizedBox(height: 16),
-                  const Text('Местоположение:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    'Местоположение:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   SizedBox(
                     height: 250,
                     child: FlutterMap(
                       options: MapOptions(
-                        initialCenter: LatLng(service.location.latitude, service.location.longitude),
+                        initialCenter: LatLng(
+                          service.location.latitude,
+                          service.location.longitude,
+                        ),
                         initialZoom: 13,
                       ),
                       children: [
                         TileLayer(
-                          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          urlTemplate:
+                              'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                           subdomains: ['a', 'b', 'c'],
                         ),
                         MarkerLayer(
                           markers: [
                             Marker(
-                              point: LatLng(service.location.latitude, service.location.longitude),
+                              point: LatLng(
+                                service.location.latitude,
+                                service.location.longitude,
+                              ),
                               width: 40,
                               height: 40,
-                              child: const Icon(Icons.location_pin, color: Colors.red, size: 40),
-                            )
+                              child: const Icon(
+                                Icons.location_pin,
+                                color: Colors.red,
+                                size: 40,
+                              ),
+                            ),
                           ],
-                        )
+                        ),
                       ],
                     ),
                   ),
@@ -154,7 +204,11 @@ class ServiceDetailScreen extends StatelessWidget {
               icon: const Icon(Icons.person),
               label: const Text('Профиль исполнителя'),
               onPressed: () {
-                Navigator.pushNamed(context, '/performer_profile', arguments: service.masterId);
+                Navigator.pushNamed(
+                  context,
+                  '/performer_profile',
+                  arguments: service.masterId,
+                );
               },
             ),
             const SizedBox(height: 8),
@@ -165,19 +219,16 @@ class ServiceDetailScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => ChatScreen(
-                      chatId: chatId,
-                      currentUserEmail: currentUserEmail,
-                      themeData: Theme.of(context),
-                      isDarkTheme: Theme.of(context).brightness == Brightness.dark,
-                      onToggleTheme: () {
-                        // Здесь вызовите ваш метод переключения темы
-                        // Например, если он передаётся в родительский виджет — пробросьте его сюда
-                      },
-                    ),
+                    builder:
+                        (_) => ChatScreen(
+                          chatId: chatId,
+                          currentUserEmail: currentUserEmail,
+                          themeData: themeData,
+                          isDarkTheme: isDarkTheme,
+                          onToggleTheme: onToggleTheme,
+                        ),
                   ),
                 );
-
               },
             ),
             const SizedBox(height: 8),

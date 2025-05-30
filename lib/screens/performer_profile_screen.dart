@@ -9,11 +9,11 @@ class PerformerProfileScreen extends StatefulWidget {
   final VoidCallback onToggleTheme;
 
   const PerformerProfileScreen({
-    Key? key,
+    super.key,
     required this.performerId,
     required this.isDarkTheme,
     required this.onToggleTheme,
-  }) : super(key: key);
+  });
 
   @override
   State<PerformerProfileScreen> createState() => _PerformerProfileScreenState();
@@ -29,23 +29,29 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
   }
 
   Future<Map<String, dynamic>?> fetchUserData() async {
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(widget.performerId).get();
+    final userDoc =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.performerId)
+            .get();
     return userDoc.exists ? userDoc.data() : null;
   }
 
   Future<List<Service>> fetchUserServices() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('services')
-        .where('masterId', isEqualTo: widget.performerId)
-        .get();
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection('services')
+            .where('masterId', isEqualTo: widget.performerId)
+            .get();
     return snapshot.docs.map((doc) => Service.fromFirestore(doc)).toList();
   }
 
   Future<List<Map<String, dynamic>>> fetchReviews() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('reviews')
-        .where('toUserId', isEqualTo: widget.performerId)
-        .get();
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection('reviews')
+            .where('toUserId', isEqualTo: widget.performerId)
+            .get();
 
     return snapshot.docs.map((doc) => doc.data()).toList();
   }
@@ -56,50 +62,60 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
 
     await showDialog(
       context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setStateDialog) => AlertDialog(
-          title: const Text('Оставить отзыв'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: controller,
-                decoration: const InputDecoration(labelText: 'Комментарий'),
-              ),
-              const SizedBox(height: 10),
-              Text('Оценка:'),
-              Slider(
-                value: rating,
-                min: 1,
-                max: 5,
-                divisions: 4,
-                label: rating.toString(),
-                onChanged: (value) => setStateDialog(() => rating = value),
-              )
-            ],
+      builder:
+          (_) => StatefulBuilder(
+            builder:
+                (context, setStateDialog) => AlertDialog(
+                  title: const Text('Оставить отзыв'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: controller,
+                        decoration: const InputDecoration(
+                          labelText: 'Комментарий',
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text('Оценка:'),
+                      Slider(
+                        value: rating,
+                        min: 1,
+                        max: 5,
+                        divisions: 4,
+                        label: rating.toString(),
+                        onChanged:
+                            (value) => setStateDialog(() => rating = value),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Отмена'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        await FirebaseFirestore.instance
+                            .collection('reviews')
+                            .add({
+                              'fromUserId': currentUserId,
+                              'toUserId': widget.performerId,
+                              'comment': controller.text,
+                              'rating': rating,
+                              'createdAt': Timestamp.now(),
+                            });
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Отзыв оставлен')),
+                        );
+                        setState(() {});
+                      },
+                      child: const Text('Оставить'),
+                    ),
+                  ],
+                ),
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
-            ElevatedButton(
-              onPressed: () async {
-                await FirebaseFirestore.instance.collection('reviews').add({
-                  'fromUserId': currentUserId,
-                  'toUserId': widget.performerId,
-                  'comment': controller.text,
-                  'rating': rating,
-                  'createdAt': Timestamp.now(),
-                });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Отзыв оставлен')),
-                );
-                setState(() {});
-              },
-              child: const Text('Оставить'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -109,9 +125,9 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
       'toUserId': widget.performerId,
       'createdAt': Timestamp.now(),
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Жалоба отправлена')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Жалоба отправлена')));
   }
 
   @override
@@ -120,30 +136,29 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
     final isDark = widget.isDarkTheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Профиль исполнителя'),
-        actions: [
-          IconButton(
-            icon: Icon(isDark ? Icons.dark_mode : Icons.light_mode),
-            tooltip: isDark ? 'Светлая тема' : 'Тёмная тема',
-            onPressed: widget.onToggleTheme,
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Профиль исполнителя')),
       body: FutureBuilder(
-        future: Future.wait([fetchUserData(), fetchUserServices(), fetchReviews()]),
+        future: Future.wait([
+          fetchUserData(),
+          fetchUserServices(),
+          fetchReviews(),
+        ]),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData)
+            return const Center(child: CircularProgressIndicator());
 
           final userData = snapshot.data![0] as Map<String, dynamic>?;
           final services = snapshot.data![1] as List<Service>;
           final reviews = snapshot.data![2] as List<Map<String, dynamic>>;
 
-          if (userData == null) return const Center(child: Text('Пользователь не найден'));
+          if (userData == null)
+            return const Center(child: Text('Пользователь не найден'));
 
           double avgRating = 0;
           if (reviews.isNotEmpty) {
-            avgRating = reviews.map((r) => r['rating'] as num).reduce((a, b) => a + b) / reviews.length;
+            avgRating =
+                reviews.map((r) => r['rating'] as num).reduce((a, b) => a + b) /
+                reviews.length;
           }
 
           return SingleChildScrollView(
@@ -156,30 +171,47 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
                     children: [
                       CircleAvatar(
                         radius: 40,
-                        backgroundImage: (userData['profileImageUrl'] ?? '').toString().isNotEmpty
-                            ? NetworkImage(userData['profileImageUrl'])
-                            : null,
-                        child: (userData['profileImageUrl'] ?? '').toString().isEmpty
-                            ? const Icon(Icons.person, size: 40)
-                            : null,
+                        backgroundImage:
+                            (userData['profileImageUrl'] ?? '')
+                                    .toString()
+                                    .isNotEmpty
+                                ? NetworkImage(userData['profileImageUrl'])
+                                : null,
+                        child:
+                            (userData['profileImageUrl'] ?? '')
+                                    .toString()
+                                    .isEmpty
+                                ? const Icon(Icons.person, size: 40)
+                                : null,
                       ),
                       const SizedBox(height: 12),
                       Text(
                         userData['name'] ?? 'Без имени',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       if (userData['bio'] != null)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Text(userData['bio'],
-                              style: TextStyle(fontSize: 16, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7))),
+                          child: Text(
+                            userData['bio'],
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: theme.textTheme.bodyMedium?.color
+                                  ?.withOpacity(0.7),
+                            ),
+                          ),
                         ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Icon(Icons.star, color: Colors.amber),
                           const SizedBox(width: 4),
-                          Text('${avgRating.toStringAsFixed(1)} (${reviews.length} отзывов)'),
+                          Text(
+                            '${avgRating.toStringAsFixed(1)} (${reviews.length} отзывов)',
+                          ),
                         ],
                       ),
                     ],
@@ -199,27 +231,36 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                 ),
                 const SizedBox(height: 24),
-                const Text('Объявления исполнителя',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Объявления исполнителя',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
-                ...services.map((s) => ListTile(
-                      title: Text(s.title),
-                      subtitle: Text(s.description),
-                      trailing: Text('${s.price}₽'),
-                    )),
+                ...services.map(
+                  (s) => ListTile(
+                    title: Text(s.title),
+                    subtitle: Text(s.description),
+                    trailing: Text('${s.price}₽'),
+                  ),
+                ),
                 const SizedBox(height: 24),
-                const Text('Отзывы', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                ...reviews.map((r) => ListTile(
-                      leading: const Icon(Icons.person),
-                      title: Text('Оценка: ${r['rating']}/5'),
-                      subtitle: Text(r['comment'] ?? ''),
-                    )),
+                const Text(
+                  'Отзывы',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                ...reviews.map(
+                  (r) => ListTile(
+                    leading: const Icon(Icons.person),
+                    title: Text('Оценка: ${r['rating']}/5'),
+                    subtitle: Text(r['comment'] ?? ''),
+                  ),
+                ),
               ],
             ),
           );
         },
       ),
-      backgroundColor: theme.colorScheme.background,
+      backgroundColor: theme.colorScheme.surface,
     );
   }
 }

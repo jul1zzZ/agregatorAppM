@@ -7,10 +7,10 @@ class ResponsesScreen extends StatelessWidget {
   final VoidCallback onToggleTheme;
 
   const ResponsesScreen({
-    Key? key,
+    super.key,
     required this.isDarkTheme,
     required this.onToggleTheme,
-  }) : super(key: key);
+  });
 
   Future<void> markJobAsCompleted(
     BuildContext context,
@@ -19,12 +19,18 @@ class ResponsesScreen extends StatelessWidget {
     Map<String, dynamic> serviceData,
     Map<String, dynamic> responseData,
   ) async {
-    final archiveServiceRef =
-        FirebaseFirestore.instance.collection('services_archive').doc(serviceId);
-    final archiveResponseRef =
-        FirebaseFirestore.instance.collection('responses_archive').doc(responseId);
-    final serviceRef = FirebaseFirestore.instance.collection('services').doc(serviceId);
-    final responseRef = FirebaseFirestore.instance.collection('responses').doc(responseId);
+    final archiveServiceRef = FirebaseFirestore.instance
+        .collection('services_archive')
+        .doc(serviceId);
+    final archiveResponseRef = FirebaseFirestore.instance
+        .collection('responses_archive')
+        .doc(responseId);
+    final serviceRef = FirebaseFirestore.instance
+        .collection('services')
+        .doc(serviceId);
+    final responseRef = FirebaseFirestore.instance
+        .collection('responses')
+        .doc(responseId);
 
     try {
       // Копируем услугу в архив
@@ -43,9 +49,9 @@ class ResponsesScreen extends StatelessWidget {
         const SnackBar(content: Text('Работа завершена и перемещена в архив')),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка при завершении: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Ошибка при завершении: $e')));
     }
   }
 
@@ -54,26 +60,20 @@ class ResponsesScreen extends StatelessWidget {
     final currentUserId = FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Отклики'),
-        actions: [
-          IconButton(
-            icon: Icon(isDarkTheme ? Icons.light_mode : Icons.dark_mode),
-            onPressed: onToggleTheme,
-            tooltip: isDarkTheme ? 'Светлая тема' : 'Тёмная тема',
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Отклики')),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('responses')
-            .where('ownerId', isEqualTo: currentUserId)
-            .snapshots(),
+        stream:
+            FirebaseFirestore.instance
+                .collection('responses')
+                .where('ownerId', isEqualTo: currentUserId)
+                .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData)
+            return const Center(child: CircularProgressIndicator());
 
           final docs = snapshot.data!.docs;
-          if (docs.isEmpty) return const Center(child: Text('Пока нет откликов'));
+          if (docs.isEmpty)
+            return const Center(child: Text('Пока нет откликов'));
 
           return ListView.builder(
             itemCount: docs.length,
@@ -86,39 +86,57 @@ class ResponsesScreen extends StatelessWidget {
               final serviceId = data['serviceId'];
 
               return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance.collection('services').doc(serviceId).get(),
+                future:
+                    FirebaseFirestore.instance
+                        .collection('services')
+                        .doc(serviceId)
+                        .get(),
                 builder: (context, serviceSnapshot) {
                   if (!serviceSnapshot.hasData) {
-                    return const ListTile(title: Text('Загрузка данных услуги...'));
+                    return const ListTile(
+                      title: Text('Загрузка данных услуги...'),
+                    );
                   }
 
-                  final serviceData = serviceSnapshot.data!.data() as Map<String, dynamic>?;
+                  final serviceData =
+                      serviceSnapshot.data!.data() as Map<String, dynamic>?;
 
                   return ListTile(
                     title: Text('$workerName — $serviceTitle'),
                     subtitle: Text(accepted ? 'Принят' : 'Ожидает решения'),
-                    trailing: accepted
-                        ? ElevatedButton(
-                            onPressed: () {
-                              if (serviceData != null) {
-                                markJobAsCompleted(context, serviceId, doc.id, serviceData, data);
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Ошибка: услуга не найдена')),
-                                );
-                              }
-                            },
-                            child: const Text('Работа выполнена'),
-                          )
-                        : ElevatedButton(
-                            onPressed: () {
-                              FirebaseFirestore.instance
-                                  .collection('responses')
-                                  .doc(doc.id)
-                                  .update({'accepted': true});
-                            },
-                            child: const Text('Принять'),
-                          ),
+                    trailing:
+                        accepted
+                            ? ElevatedButton(
+                              onPressed: () {
+                                if (serviceData != null) {
+                                  markJobAsCompleted(
+                                    context,
+                                    serviceId,
+                                    doc.id,
+                                    serviceData,
+                                    data,
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Ошибка: услуга не найдена',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                              child: const Text('Работа выполнена'),
+                            )
+                            : ElevatedButton(
+                              onPressed: () {
+                                FirebaseFirestore.instance
+                                    .collection('responses')
+                                    .doc(doc.id)
+                                    .update({'accepted': true});
+                              },
+                              child: const Text('Принять'),
+                            ),
                   );
                 },
               );

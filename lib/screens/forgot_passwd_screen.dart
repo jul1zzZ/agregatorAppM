@@ -6,16 +6,17 @@ class ForgotPasswordScreen extends StatefulWidget {
   final VoidCallback onToggleTheme;
 
   const ForgotPasswordScreen({
-    Key? key,
+    super.key,
     required this.isDarkTheme,
     required this.onToggleTheme,
-  }) : super(key: key);
+  });
 
   @override
   _ForgotPasswordScreenState createState() => _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with SingleTickerProviderStateMixin {
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _emailController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -35,15 +36,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
+    ).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
 
-    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeIn,
-    ));
+    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+    );
 
     _animationController.forward();
   }
@@ -51,21 +50,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
   Future<void> _resetPassword() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Введите email')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Введите email')));
       return;
     }
 
     try {
       await _auth.sendPasswordResetEmail(email: email);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ссылка для восстановления пароля отправлена.')),
+        const SnackBar(
+          content: Text('Ссылка для восстановления пароля отправлена.'),
+        ),
       );
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: ${e.message}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Ошибка: ${e.message}')));
     }
   }
 
@@ -82,7 +83,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
     final bgColor = isDarkTheme ? Colors.black : Colors.white;
     final textColor = isDarkTheme ? Colors.white : Colors.black87;
     final inputFillColor = isDarkTheme ? Colors.white10 : Colors.grey.shade200;
-    final inputBorderColor = isDarkTheme ? Colors.white24 : Colors.grey.shade400;
+    final inputBorderColor =
+        isDarkTheme ? Colors.white24 : Colors.grey.shade400;
     final buttonColor = isDarkTheme ? Colors.blueAccent : Colors.blue;
 
     return Scaffold(
@@ -103,11 +105,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.lock_reset_rounded,
-                    color: textColor,
-                    size: 72,
-                  ),
+                  Icon(Icons.lock_reset_rounded, color: textColor, size: 72),
                   const SizedBox(height: 24),
                   _buildTextField(
                     controller: _emailController,

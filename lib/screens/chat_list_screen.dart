@@ -9,10 +9,10 @@ class ChatListScreen extends StatelessWidget {
   final VoidCallback onToggleTheme;
 
   const ChatListScreen({
-    Key? key,
+    super.key,
     required this.isDarkTheme,
     required this.onToggleTheme,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -37,21 +37,16 @@ class ChatListScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Чаты'),
         backgroundColor: theme.appBarTheme.backgroundColor,
-        actions: [
-          IconButton(
-            icon: Icon(isDarkTheme ? Icons.light_mode : Icons.dark_mode),
-            onPressed: onToggleTheme,
-            tooltip: 'Сменить тему',
-          ),
-        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('chats')
-            .where('participantsEmails', arrayContains: currentUserEmail)
-            .snapshots(),
+        stream:
+            FirebaseFirestore.instance
+                .collection('chats')
+                .where('participantsEmails', arrayContains: currentUserEmail)
+                .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData)
+            return const Center(child: CircularProgressIndicator());
 
           final chatDocs = snapshot.data!.docs;
 
@@ -72,8 +67,12 @@ class ChatListScreen extends StatelessWidget {
               final chat = chatDocs[index];
               final chatId = chat.id;
 
-              final participantsMap = Map<String, dynamic>.from(chat['participants'] ?? {});
-              final participantsEmails = List<String>.from(chat['participantsEmails'] ?? []);
+              final participantsMap = Map<String, dynamic>.from(
+                chat['participants'] ?? {},
+              );
+              final participantsEmails = List<String>.from(
+                chat['participantsEmails'] ?? [],
+              );
 
               final otherUserEmail = participantsEmails.firstWhere(
                 (email) => email != currentUserEmail,
@@ -84,40 +83,48 @@ class ChatListScreen extends StatelessWidget {
               String? otherUserAvatarUrl;
 
               if (otherUserEmail.isNotEmpty) {
-                final otherUserData = Map<String, dynamic>.from(participantsMap[otherUserEmail] ?? {});
+                final otherUserData = Map<String, dynamic>.from(
+                  participantsMap[otherUserEmail] ?? {},
+                );
                 otherUserName = otherUserData['name'] ?? 'Пользователь';
                 otherUserAvatarUrl = otherUserData['avatarUrl'];
               }
 
               return ListTile(
-                leading: (otherUserAvatarUrl != null && otherUserAvatarUrl.isNotEmpty)
-                    ? CircleAvatar(
-                        backgroundImage: NetworkImage(otherUserAvatarUrl),
-                      )
-                    : CircleAvatar(
-                        backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
-                        child: Icon(Icons.person, color: theme.colorScheme.primary),
-                      ),
-                title: Text(
-                  otherUserName,
-                  style: theme.textTheme.titleMedium,
-                ),
+                leading:
+                    (otherUserAvatarUrl != null &&
+                            otherUserAvatarUrl.isNotEmpty)
+                        ? CircleAvatar(
+                          backgroundImage: NetworkImage(otherUserAvatarUrl),
+                        )
+                        : CircleAvatar(
+                          backgroundColor: theme.colorScheme.primary
+                              .withOpacity(0.2),
+                          child: Icon(
+                            Icons.person,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                title: Text(otherUserName, style: theme.textTheme.titleMedium),
                 subtitle: Text(
                   'Нажмите, чтобы открыть',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.hintColor,
+                  ),
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => ChatScreen(
-                        chatId: chatId,
-                        currentUserEmail: currentUserEmail,
-                        themeData: theme,  // Передаем тему, если нужно
-                        isDarkTheme: isDarkTheme,
-                        onToggleTheme: onToggleTheme,
-                      ),
+                      builder:
+                          (context) => ChatScreen(
+                            chatId: chatId,
+                            currentUserEmail: currentUserEmail,
+                            themeData: theme,
+                            isDarkTheme: isDarkTheme,
+                            onToggleTheme: onToggleTheme,
+                          ),
                     ),
                   );
                 },

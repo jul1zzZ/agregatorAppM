@@ -8,10 +8,10 @@ class MyJobsScreen extends StatelessWidget {
   final VoidCallback onToggleTheme;
 
   const MyJobsScreen({
-    Key? key,
+    super.key,
     required this.isDarkTheme,
     required this.onToggleTheme,
-  }) : super(key: key);
+  });
 
   Stream<List<QueryDocumentSnapshot>> _activeResponsesStream(String userId) {
     return FirebaseFirestore.instance
@@ -37,25 +37,17 @@ class MyJobsScreen extends StatelessWidget {
     final currentUserId = FirebaseAuth.instance.currentUser!.uid;
 
     final combinedStream = CombineLatestStream.combine2<
-        List<QueryDocumentSnapshot>,
-        List<QueryDocumentSnapshot>,
-        List<QueryDocumentSnapshot>>(
+      List<QueryDocumentSnapshot>,
+      List<QueryDocumentSnapshot>,
+      List<QueryDocumentSnapshot>
+    >(
       _activeResponsesStream(currentUserId),
       _archivedResponsesStream(currentUserId),
       (active, archived) => [...active, ...archived],
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Мои работы'),
-        actions: [
-          IconButton(
-            icon: Icon(isDarkTheme ? Icons.light_mode : Icons.dark_mode),
-            onPressed: onToggleTheme,
-            tooltip: isDarkTheme ? 'Светлая тема' : 'Тёмная тема',
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Мои работы')),
       body: StreamBuilder<List<QueryDocumentSnapshot>>(
         stream: combinedStream,
         builder: (context, snapshot) {
@@ -70,7 +62,9 @@ class MyJobsScreen extends StatelessWidget {
           final docs = snapshot.data ?? [];
 
           if (docs.isEmpty) {
-            return const Center(child: Text('Нет активных и завершённых работ'));
+            return const Center(
+              child: Text('Нет активных и завершённых работ'),
+            );
           }
 
           return ListView.builder(
@@ -82,13 +76,16 @@ class MyJobsScreen extends StatelessWidget {
 
               return ListTile(
                 title: Text(data['serviceTitle'] ?? 'Без названия'),
-                subtitle: Text('Работодатель: ${data['ownerName'] ?? 'Неизвестен'}'),
-                trailing: isDone
-                    ? const Icon(Icons.check_circle, color: Colors.green)
-                    : const Text(
-                        'В процессе',
-                        style: TextStyle(color: Colors.orange),
-                      ),
+                subtitle: Text(
+                  'Работодатель: ${data['ownerName'] ?? 'Неизвестен'}',
+                ),
+                trailing:
+                    isDone
+                        ? const Icon(Icons.check_circle, color: Colors.green)
+                        : const Text(
+                          'В процессе',
+                          style: TextStyle(color: Colors.orange),
+                        ),
               );
             },
           );

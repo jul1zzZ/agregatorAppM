@@ -20,13 +20,13 @@ class Service {
 
 class ServicesMapScreen extends StatefulWidget {
   final bool isDarkTheme;
-  final VoidCallback onToggleTheme;
+  final VoidCallback onToggleTheme; // Можно убрать, если не нужен
 
   const ServicesMapScreen({
-    Key? key,
+    super.key,
     required this.isDarkTheme,
     required this.onToggleTheme,
-  }) : super(key: key);
+  });
 
   @override
   _ServicesMapScreenState createState() => _ServicesMapScreenState();
@@ -40,9 +40,24 @@ class _ServicesMapScreenState extends State<ServicesMapScreen> {
 
   // Пример данных, позже подгружать из Firestore
   List<Service> allServices = [
-    Service(id: '1', title: 'Услуга 1', price: 100, location: LatLng(55.751244, 37.618423)),
-    Service(id: '2', title: 'Услуга 2', price: 200, location: LatLng(55.761244, 37.628423)),
-    Service(id: '3', title: 'Услуга 3', price: 150, location: LatLng(55.781244, 37.638423)),
+    Service(
+      id: '1',
+      title: 'Услуга 1',
+      price: 100,
+      location: LatLng(55.751244, 37.618423),
+    ),
+    Service(
+      id: '2',
+      title: 'Услуга 2',
+      price: 200,
+      location: LatLng(55.761244, 37.628423),
+    ),
+    Service(
+      id: '3',
+      title: 'Услуга 3',
+      price: 150,
+      location: LatLng(55.781244, 37.638423),
+    ),
   ];
 
   List<Service> filteredServices = [];
@@ -78,7 +93,9 @@ class _ServicesMapScreenState extends State<ServicesMapScreen> {
 
     if (permission == LocationPermission.deniedForever) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Разрешение на геолокацию отклонено навсегда')),
+        const SnackBar(
+          content: Text('Разрешение на геолокацию отклонено навсегда'),
+        ),
       );
       return;
     }
@@ -98,14 +115,15 @@ class _ServicesMapScreenState extends State<ServicesMapScreen> {
     final Distance distance = Distance();
 
     setState(() {
-      filteredServices = allServices.where((service) {
-        final double km = distance.as(
-          LengthUnit.Kilometer,
-          _currentPosition!,
-          service.location,
-        );
-        return km <= _searchRadiusKm;
-      }).toList();
+      filteredServices =
+          allServices.where((service) {
+            final double km = distance.as(
+              LengthUnit.Kilometer,
+              _currentPosition!,
+              service.location,
+            );
+            return km <= _searchRadiusKm;
+          }).toList();
     });
 
     _mapController.move(_currentPosition!, 13);
@@ -126,13 +144,8 @@ class _ServicesMapScreenState extends State<ServicesMapScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Услуги на карте'),
-        actions: [
-          IconButton(
-            icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
-            onPressed: widget.onToggleTheme,
-            tooltip: isDark ? 'Светлая тема' : 'Тёмная тема',
-          ),
-        ],
+        // Кнопка переключения темы удалена:
+        // actions: [ ... ],
       ),
       body: Column(
         children: [
@@ -164,59 +177,68 @@ class _ServicesMapScreenState extends State<ServicesMapScreen> {
             ),
           ),
           Expanded(
-            child: _currentPosition == null
-                ? const Center(child: CircularProgressIndicator())
-                : FlutterMap(
-                    mapController: _mapController,
-                    options: MapOptions(
-                      initialCenter: _currentPosition!,
-                      initialZoom: 13,
-                      maxZoom: 18,
-                      minZoom: 3,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        subdomains: const ['a', 'b', 'c'],
-                        userAgentPackageName: 'com.example.agregatorapp',
+            child:
+                _currentPosition == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter: _currentPosition!,
+                        initialZoom: 13,
+                        maxZoom: 18,
+                        minZoom: 3,
                       ),
-                      MarkerLayer(
-                        markers: filteredServices.map((service) {
-                          return Marker(
-                            width: 40,
-                            height: 40,
-                            point: service.location,
-                            child: GestureDetector(
-                              onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Выбрана услуга: ${service.title}')),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          subdomains: const ['a', 'b', 'c'],
+                          userAgentPackageName: 'com.example.agregatorapp',
+                        ),
+                        MarkerLayer(
+                          markers:
+                              filteredServices.map((service) {
+                                return Marker(
+                                  width: 40,
+                                  height: 40,
+                                  point: service.location,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Выбрана услуга: ${service.title}',
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: const Icon(
+                                      Icons.location_on,
+                                      color: Colors.red,
+                                      size: 40,
+                                    ),
+                                  ),
                                 );
-                              },
+                              }).toList(),
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              width: 40,
+                              height: 40,
+                              point: _currentPosition!,
                               child: const Icon(
-                                Icons.location_on,
-                                color: Colors.red,
+                                Icons.my_location,
+                                color: Colors.blue,
                                 size: 40,
                               ),
                             ),
-                          );
-                        }).toList(),
-                      ),
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            width: 40,
-                            height: 40,
-                            point: _currentPosition!,
-                            child: const Icon(
-                              Icons.my_location,
-                              color: Colors.blue,
-                              size: 40,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                          ],
+                        ),
+                      ],
+                    ),
           ),
         ],
       ),
