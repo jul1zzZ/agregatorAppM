@@ -8,14 +8,13 @@ import 'services_map_screen.dart';
 import 'my_jobs_screen.dart';
 import 'responses_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final String userId;
   final String userName;
   final String userEmail;
   final String userAvatarUrl;
-
-  final bool isDarkTheme;
-  final VoidCallback onToggleTheme;
+  final VoidCallback? onToggleTheme; // <- добавьте
+  final bool? isDarkTheme;
 
   const HomeScreen({
     super.key,
@@ -23,9 +22,34 @@ class HomeScreen extends StatelessWidget {
     required this.userName,
     required this.userEmail,
     required this.userAvatarUrl,
-    required this.isDarkTheme,
-    required this.onToggleTheme,
+    this.onToggleTheme,
+    this.isDarkTheme,
   });
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late bool isDarkTheme;
+
+  @override
+  void initState() {
+    super.initState();
+    // Инициализация из параметра, либо false, если null
+    isDarkTheme = widget.isDarkTheme ?? false;
+  }
+
+  void toggleTheme() {
+    setState(() {
+      isDarkTheme = !isDarkTheme;
+    });
+    // Если хотите, чтобы toggleTheme вызывал callback из widget,
+    // чтобы поднималась тема выше — добавьте:
+    if (widget.onToggleTheme != null) {
+      widget.onToggleTheme!();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +85,7 @@ class HomeScreen extends StatelessWidget {
               isDarkTheme ? Icons.light_mode : Icons.dark_mode,
               color: textColor,
             ),
-            onPressed: onToggleTheme,
+            onPressed: toggleTheme,
             tooltip: isDarkTheme ? 'Светлая тема' : 'Тёмная тема',
           ),
           IconButton(
@@ -84,20 +108,20 @@ class HomeScreen extends StatelessWidget {
                 CircleAvatar(
                   radius: 30,
                   backgroundImage:
-                      userAvatarUrl.isNotEmpty
-                          ? NetworkImage(userAvatarUrl)
+                      widget.userAvatarUrl.isNotEmpty
+                          ? NetworkImage(widget.userAvatarUrl)
                           : null,
                   backgroundColor:
                       isDarkTheme ? Colors.grey[800] : Colors.grey[300],
                   child:
-                      userAvatarUrl.isEmpty
+                      widget.userAvatarUrl.isEmpty
                           ? Icon(Icons.person, size: 30, color: Colors.white70)
                           : null,
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Text(
-                    'Здравствуйте, $userName!',
+                    'Здравствуйте, ${widget.userName}!',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -109,7 +133,7 @@ class HomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              userEmail,
+              widget.userEmail,
               style: TextStyle(fontSize: 16, color: textColor.withOpacity(0.7)),
             ),
             const SizedBox(height: 30),
@@ -134,7 +158,7 @@ class HomeScreen extends StatelessWidget {
                       builder:
                           (_) => ServiceCatalogScreen(
                             isDarkTheme: isDarkTheme,
-                            onToggleTheme: onToggleTheme,
+                            onToggleTheme: toggleTheme,
                           ),
                     ),
                   ),
@@ -166,7 +190,7 @@ class HomeScreen extends StatelessWidget {
                       builder:
                           (_) => ChatListScreen(
                             isDarkTheme: isDarkTheme,
-                            onToggleTheme: onToggleTheme,
+                            onToggleTheme: toggleTheme,
                           ),
                     ),
                   ),
@@ -184,7 +208,7 @@ class HomeScreen extends StatelessWidget {
                       builder:
                           (_) => ServicesMapScreen(
                             isDarkTheme: isDarkTheme,
-                            onToggleTheme: onToggleTheme,
+                            onToggleTheme: toggleTheme,
                           ),
                     ),
                   ),
@@ -202,7 +226,7 @@ class HomeScreen extends StatelessWidget {
                       builder:
                           (_) => MyJobsScreen(
                             isDarkTheme: isDarkTheme,
-                            onToggleTheme: onToggleTheme,
+                            onToggleTheme: toggleTheme,
                           ),
                     ),
                   ),
@@ -220,7 +244,7 @@ class HomeScreen extends StatelessWidget {
                       builder:
                           (_) => ResponsesScreen(
                             isDarkTheme: isDarkTheme,
-                            onToggleTheme: onToggleTheme,
+                            onToggleTheme: toggleTheme,
                           ),
                     ),
                   ),

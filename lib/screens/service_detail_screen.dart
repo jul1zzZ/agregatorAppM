@@ -212,25 +212,44 @@ class ServiceDetailScreen extends StatelessWidget {
               },
             ),
             const SizedBox(height: 8),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.chat),
-              label: const Text('Написать исполнителю'),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder:
-                        (_) => ChatScreen(
-                          chatId: chatId,
-                          currentUserEmail: currentUserEmail,
-                          themeData: themeData,
-                          isDarkTheme: isDarkTheme,
-                          onToggleTheme: onToggleTheme,
-                        ),
+            if (!isOwner)
+              ElevatedButton.icon(
+                icon: const Icon(Icons.chat),
+                label: const Text('Написать исполнителю'),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (_) => ChatScreen(
+                            chatId: chatId,
+                            currentUserEmail: currentUserEmail,
+                            themeData: themeData,
+                            isDarkTheme: isDarkTheme,
+                            onToggleTheme: onToggleTheme,
+                          ),
+                    ),
+                  );
+                },
+              )
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Center(
+                  child: Text(
+                    'Это ваше объявление',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                );
-              },
-            ),
+                ),
+              ),
             const SizedBox(height: 8),
             if (!isOwner)
               ElevatedButton.icon(

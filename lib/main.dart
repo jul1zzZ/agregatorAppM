@@ -18,7 +18,8 @@ import 'screens/services_map_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(MyApp());
+  await FirebaseAuth.instance.signOut();
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
@@ -46,17 +47,12 @@ class _MyAppState extends State<MyApp> {
       darkTheme: ThemeData.dark(),
       themeMode: _themeMode,
       home: AuthWrapper(themeMode: _themeMode, onToggleTheme: toggleTheme),
-      onGenerateRoute:
-          (settings) => _generateRoute(settings, _themeMode, toggleTheme),
+      onGenerateRoute: (settings) => _generateRoute(settings),
     );
   }
 
-  Route<dynamic> _generateRoute(
-    RouteSettings settings,
-    ThemeMode themeMode,
-    VoidCallback toggleTheme,
-  ) {
-    final isDarkTheme = themeMode == ThemeMode.dark;
+  Route<dynamic> _generateRoute(RouteSettings settings) {
+    final isDarkTheme = _themeMode == ThemeMode.dark;
 
     switch (settings.name) {
       case '/register':
@@ -76,13 +72,11 @@ class _MyAppState extends State<MyApp> {
               ),
         );
       case '/catalog':
-        final args = settings.arguments as Map<String, dynamic>?;
         return MaterialPageRoute(
           builder:
               (_) => ServiceCatalogScreen(
                 isDarkTheme: isDarkTheme,
                 onToggleTheme: toggleTheme,
-                // Можно передать args, если нужно
               ),
         );
       case '/add_service':
@@ -96,7 +90,7 @@ class _MyAppState extends State<MyApp> {
               ),
         );
       case '/performer_profile':
-        final performerId = settings.arguments as String;
+        final performerId = settings.arguments as String? ?? '';
         return MaterialPageRoute(
           builder:
               (_) => PerformerProfileScreen(
@@ -181,13 +175,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
             .get();
 
     userData =
-        doc.exists
-            ? doc.data()
-            : {
-              'userName': firebaseUser!.displayName ?? 'Пользователь',
-              'userEmail': firebaseUser!.email ?? '',
-              'userAvatarUrl': firebaseUser!.photoURL ?? '',
-            };
+        doc.data() ??
+        {
+          'userName': firebaseUser!.displayName ?? 'Пользователь',
+          'userEmail': firebaseUser!.email ?? '',
+          'userAvatarUrl': firebaseUser!.photoURL ?? '',
+        };
 
     if (mounted) {
       setState(() => loading = false);

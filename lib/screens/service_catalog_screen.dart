@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:agregatorapp/models/service_model.dart';
 import 'package:agregatorapp/screens/service_detail_screen.dart';
+import 'package:agregatorapp/screens/compare_services_screen.dart';
 
 class ServiceCatalogScreen extends StatefulWidget {
   final bool isDarkTheme;
@@ -21,12 +22,15 @@ class ServiceCatalogScreen extends StatefulWidget {
 class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
   List<Service> allServices = [];
   List<Service> filteredServices = [];
+  List<Service> selectedForComparison = [];
+
   String searchKeyword = '';
   String selectedCategory = 'all';
   double minPrice = 0;
   double maxPrice = 20000;
   double maxPriceLimit = 20000;
   double maxDistanceKm = 100;
+
   Position? _currentPosition;
   final TextEditingController _searchController = TextEditingController();
 
@@ -129,6 +133,16 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
     }
   }
 
+  void _toggleSelection(Service service) {
+    setState(() {
+      if (selectedForComparison.contains(service)) {
+        selectedForComparison.remove(service);
+      } else {
+        selectedForComparison.add(service);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDarkTheme;
@@ -143,8 +157,25 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
         backgroundColor: bgColor,
         foregroundColor: textColor,
         title: const Text('Каталог услуг'),
-        elevation: 0,
-        // Кнопка смены темы удалена
+        actions: [
+          if (selectedForComparison.length >= 2)
+            IconButton(
+              icon: const Icon(Icons.compare),
+              tooltip: 'Сравнить выбранные',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (_) => CompareServicesScreen(
+                          servicesToCompare: selectedForComparison,
+                          isDarkTheme: isDark,
+                        ),
+                  ),
+                );
+              },
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -241,7 +272,6 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
                 if (_currentPosition != null)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,6 +310,10 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
                       itemCount: filteredServices.length,
                       itemBuilder: (context, index) {
                         final service = filteredServices[index];
+                        final isSelected = selectedForComparison.contains(
+                          service,
+                        );
+
                         return Card(
                           color: surfaceVariant,
                           margin: const EdgeInsets.symmetric(
@@ -288,6 +322,10 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
+                            side:
+                                isSelected
+                                    ? BorderSide(color: accentColor, width: 2)
+                                    : BorderSide.none,
                           ),
                           child: ListTile(
                             title: Text(
@@ -295,30 +333,45 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
                               style: TextStyle(color: textColor),
                             ),
                             subtitle: Text(
-                              '${service.description} — \$${service.price}',
+                              '${service.description} — ${service.price}₽',
                               style: TextStyle(
                                 color: textColor.withOpacity(0.7),
                               ),
                             ),
-                            trailing: Icon(
-                              Icons.arrow_forward_ios,
-                              size: 16,
-                              color: accentColor,
-                            ),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (_) => ServiceDetailScreen(
-                                        service: service,
-                                        themeData: Theme.of(context),
-                                        isDarkTheme: widget.isDarkTheme,
-                                        onToggleTheme: widget.onToggleTheme,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.visibility,
+                                    color: textColor,
+                                  ),
+                                  tooltip: 'Подробнее',
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (_) => ServiceDetailScreen(
+                                              service: service,
+                                              themeData: Theme.of(context),
+                                              isDarkTheme: widget.isDarkTheme,
+                                              onToggleTheme:
+                                                  widget.onToggleTheme,
+                                            ),
                                       ),
+                                    );
+                                  },
                                 ),
-                              );
-                            },
+                                Icon(
+                                  isSelected
+                                      ? Icons.check_box
+                                      : Icons.check_box_outline_blank,
+                                  color: accentColor,
+                                ),
+                              ],
+                            ),
+                            onTap: () => _toggleSelection(service),
                           ),
                         );
                       },

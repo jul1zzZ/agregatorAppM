@@ -1,7 +1,9 @@
+import 'package:agregatorapp/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AdminPanelScreen extends StatefulWidget {
   final String userId;
@@ -11,19 +13,20 @@ class AdminPanelScreen extends StatefulWidget {
   final bool isDarkTheme;
 
   const AdminPanelScreen({
-    Key? key,
+    super.key,
     required this.userId,
     required this.userName,
     required this.userEmail,
     required this.onToggleTheme,
     required this.isDarkTheme,
-  }) : super(key: key);
+  });
 
   @override
   _AdminPanelScreenState createState() => _AdminPanelScreenState();
 }
 
-class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerProviderStateMixin {
+class _AdminPanelScreenState extends State<AdminPanelScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   Map<String, int> _servicesByDate = {};
   List<_UserCount> _topUsers = [];
@@ -31,7 +34,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 3, vsync: this, initialIndex: 2);
     _loadStatistics();
   }
 
@@ -42,12 +45,16 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   }
 
   Future<void> _deleteService(String serviceId) async {
-    await FirebaseFirestore.instance.collection('services').doc(serviceId).delete();
+    await FirebaseFirestore.instance
+        .collection('services')
+        .doc(serviceId)
+        .delete();
     await _loadStatistics();
   }
 
   Future<void> _loadStatistics() async {
-    final servicesSnap = await FirebaseFirestore.instance.collection('services').get();
+    final servicesSnap =
+        await FirebaseFirestore.instance.collection('services').get();
     final services = servicesSnap.docs;
 
     Map<String, int> countByDate = {};
@@ -57,10 +64,10 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     for (var service in services) {
       final data = service.data();
       final createdAt = data['createdAt'];
-if (createdAt is Timestamp) {
-  String day = dateFormat.format(createdAt.toDate());
-  countByDate[day] = (countByDate[day] ?? 0) + 1;
-}
+      if (createdAt is Timestamp) {
+        String day = dateFormat.format(createdAt.toDate());
+        countByDate[day] = (countByDate[day] ?? 0) + 1;
+      }
 
       String? masterId = data['masterId'];
       if (masterId != null && masterId.isNotEmpty) {
@@ -68,16 +75,22 @@ if (createdAt is Timestamp) {
       }
     }
 
-    var sortedUsers = countByUser.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    var sortedUsers =
+        countByUser.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
     sortedUsers = sortedUsers.take(5).toList();
 
     List<_UserCount> topUsersWithNames = [];
 
     for (var entry in sortedUsers) {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(entry.key).get();
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(entry.key)
+              .get();
       final userData = userDoc.data();
-      String userName = userData != null ? (userData['name'] ?? 'Без имени') : 'Неизвестный';
+      String userName =
+          userData != null ? (userData['name'] ?? 'Без имени') : 'Неизвестный';
       topUsersWithNames.add(_UserCount(userName, entry.value));
     }
 
@@ -95,9 +108,27 @@ if (createdAt is Timestamp) {
         title: const Text('Админ-панель'),
         actions: [
           IconButton(
-            icon: Icon(isDark ? Icons.dark_mode : Icons.light_mode),
+            icon: Icon(widget.isDarkTheme ? Icons.dark_mode : Icons.light_mode),
             onPressed: widget.onToggleTheme,
-          )
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Выйти',
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder:
+                        (context) => LoginScreen(
+                          onToggleTheme: widget.onToggleTheme,
+                          isDarkTheme: widget.isDarkTheme,
+                        ),
+                  ),
+                );
+              }
+            },
+          ),
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -123,7 +154,8 @@ if (createdAt is Timestamp) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('users').snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        if (!snapshot.hasData)
+          return const Center(child: CircularProgressIndicator());
 
         final users = snapshot.data!.docs;
 
@@ -135,7 +167,10 @@ if (createdAt is Timestamp) {
             final name = data['name'] ?? 'Без имени';
             final email = data['email'] ?? '';
             final userType = data['userType'] ?? 'client';
-            final isBlocked = data.containsKey('isBlocked') ? data['isBlocked'] == true : false;
+            final isBlocked =
+                data.containsKey('isBlocked')
+                    ? data['isBlocked'] == true
+                    : false;
 
             return ListTile(
               leading: Icon(Icons.person, color: isBlocked ? Colors.red : null),
@@ -161,7 +196,8 @@ if (createdAt is Timestamp) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('services').snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        if (!snapshot.hasData)
+          return const Center(child: CircularProgressIndicator());
 
         final services = snapshot.data!.docs;
 
@@ -175,7 +211,11 @@ if (createdAt is Timestamp) {
             return ListTile(
               leading: const Icon(Icons.work),
               title: Text(title),
-              subtitle: Text(description, maxLines: 2, overflow: TextOverflow.ellipsis),
+              subtitle: Text(
+                description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
               trailing: IconButton(
                 icon: const Icon(Icons.delete, color: Colors.red),
                 onPressed: () async {
@@ -194,24 +234,34 @@ if (createdAt is Timestamp) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    List<BarChartGroupData> barGroups = _servicesByDate.entries
-        .toList()
-        .asMap()
-        .entries
-        .map((entry) => BarChartGroupData(
-              x: entry.key,
-              barRods: [
-                BarChartRodData(toY: entry.value.value.toDouble(), width: 16, color: Colors.blue),
-              ],
-            ))
-        .toList();
+    List<BarChartGroupData> barGroups =
+        _servicesByDate.entries
+            .toList()
+            .asMap()
+            .entries
+            .map(
+              (entry) => BarChartGroupData(
+                x: entry.key,
+                barRods: [
+                  BarChartRodData(
+                    toY: entry.value.value.toDouble(),
+                    width: 16,
+                    color: Colors.blue,
+                  ),
+                ],
+              ),
+            )
+            .toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('График публикаций услуг по датам:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'График публикаций услуг по датам:',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           SizedBox(
             height: 300,
             child: BarChart(
@@ -226,7 +276,10 @@ if (createdAt is Timestamp) {
                         final key = _servicesByDate.keys.elementAt(index);
                         return SideTitleWidget(
                           axisSide: meta.axisSide,
-                          child: Text(key.substring(5), style: const TextStyle(fontSize: 10)),
+                          child: Text(
+                            key.substring(5),
+                            style: const TextStyle(fontSize: 10),
+                          ),
                         );
                       },
                     ),
@@ -234,8 +287,12 @@ if (createdAt is Timestamp) {
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(showTitles: true),
                   ),
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 borderData: FlBorderData(show: false),
                 gridData: FlGridData(show: false),
@@ -243,13 +300,18 @@ if (createdAt is Timestamp) {
             ),
           ),
           const SizedBox(height: 24),
-          const Text('ТОП-5 пользователей по количеству услуг:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'ТОП-5 пользователей по количеству услуг:',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
-          ..._topUsers.map((user) => ListTile(
-                leading: const Icon(Icons.person),
-                title: Text(user.userName),
-                trailing: Text(user.count.toString()),
-              )),
+          ..._topUsers.map(
+            (user) => ListTile(
+              leading: const Icon(Icons.person),
+              title: Text(user.userName),
+              trailing: Text(user.count.toString()),
+            ),
+          ),
         ],
       ),
     );
