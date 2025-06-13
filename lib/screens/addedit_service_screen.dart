@@ -28,6 +28,7 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
   String _category = 'repair';
   GeoPoint _location = const GeoPoint(0, 0);
   List<File> _selectedImages = [];
+  int _durationInHours = 1;
 
   bool _isLoading = false;
 
@@ -96,6 +97,11 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
 
     final localFilePaths = await _saveImagesLocally();
 
+    final now = Timestamp.now();
+    final expiresAt = Timestamp.fromDate(
+      now.toDate().add(Duration(hours: _durationInHours)),
+    );
+
     final data = {
       'title': _title,
       'description': _description,
@@ -103,7 +109,8 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
       'category': _category,
       'location': {'lat': _location.latitude, 'lng': _location.longitude},
       'imagePaths': localFilePaths,
-      'createdAt': FieldValue.serverTimestamp(),
+      'createdAt': now,
+      'expiresAt': expiresAt,
       'masterId': currentUser.uid,
       'masterEmail': currentUser.email ?? '',
     };
@@ -204,6 +211,24 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
                         ],
                         onChanged:
                             (value) => setState(() => _category = value!),
+                      ),
+                      DropdownButtonFormField<int>(
+                        value: _durationInHours,
+                        decoration: const InputDecoration(
+                          labelText: 'Срок действия (ч)',
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 1, child: Text('1 час')),
+                          DropdownMenuItem(value: 3, child: Text('3 часа')),
+                          DropdownMenuItem(value: 6, child: Text('6 часов')),
+                          DropdownMenuItem(value: 12, child: Text('12 часов')),
+                          DropdownMenuItem(value: 24, child: Text('1 день')),
+                          DropdownMenuItem(value: 48, child: Text('2 дня')),
+                          DropdownMenuItem(value: 72, child: Text('3 дня')),
+                        ],
+                        onChanged:
+                            (value) =>
+                                setState(() => _durationInHours = value!),
                       ),
                       const SizedBox(height: 10),
                       Text('Фото (${_selectedImages.length})'),

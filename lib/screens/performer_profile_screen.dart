@@ -51,6 +51,7 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
         await FirebaseFirestore.instance
             .collection('reviews')
             .where('toUserId', isEqualTo: widget.performerId)
+            .where('status', isEqualTo: 'approved') // Только одобренные отзывы
             .get();
 
     return snapshot.docs.map((doc) => doc.data()).toList();
@@ -104,11 +105,20 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
                               'comment': controller.text,
                               'rating': rating,
                               'createdAt': Timestamp.now(),
+                              'status': 'pending',
                             });
+
                         Navigator.pop(context);
+
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Отзыв оставлен')),
+                          const SnackBar(
+                            content: Text(
+                              'Отзыв отправлен на модерацию и будет опубликован после одобрения.',
+                            ),
+                            duration: Duration(seconds: 4),
+                          ),
                         );
+
                         setState(() {});
                       },
                       child: const Text('Оставить'),

@@ -19,7 +19,21 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   await FirebaseAuth.instance.signOut();
+  await _deleteExpiredServices(); // 👈 Удаляем просроченные заявки
   runApp(const MyApp());
+}
+
+Future<void> _deleteExpiredServices() async {
+  final now = Timestamp.now();
+  final snapshot =
+      await FirebaseFirestore.instance
+          .collection('services')
+          .where('expiresAt', isLessThan: now)
+          .get();
+
+  for (var doc in snapshot.docs) {
+    await doc.reference.delete();
+  }
 }
 
 class MyApp extends StatefulWidget {

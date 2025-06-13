@@ -34,7 +34,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this, initialIndex: 2);
+    _tabController = TabController(length: 4, vsync: this, initialIndex: 2);
     _loadStatistics();
   }
 
@@ -102,7 +102,6 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = widget.isDarkTheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Админ-панель'),
@@ -136,6 +135,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
             Tab(text: 'Пользователи'),
             Tab(text: 'Заявки'),
             Tab(text: 'Статистика'),
+            Tab(text: 'Отзывы'),
           ],
         ),
       ),
@@ -145,6 +145,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
           _buildUsersTab(),
           _buildServicesTab(),
           _buildStatisticsTab(),
+          _buildReviewsTab(),
         ],
       ),
     );
@@ -316,12 +317,194 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
       ),
     );
   }
-}
 
-class _DateCount {
-  final String date;
-  final int count;
-  _DateCount(this.date, this.count);
+  Widget _buildReviewsTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream:
+          FirebaseFirestore.instance
+              .collection('reviews')
+              .orderBy('status')
+              .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final reviews = snapshot.data!.docs;
+        final total = reviews.length;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Text(
+                'Всего отзывов: $total',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: reviews.length,
+                itemBuilder: (context, index) {
+                  final review = reviews[index];
+                  final data = review.data() as Map<String, dynamic>;
+                  final text = data['comment'] ?? ''; // у вас поле "comment"
+                  final rating = data['rating'] ?? 0;
+                  final status = data['status'] ?? 'pending';
+                  final fromUserId = data['fromUserId'] ?? '';
+                  final toUserId = data['toUserId'] ?? '';
+
+                  return FutureBuilder<List<String>>(
+                    future: Future.wait([
+                      _getUserName(fromUserId),
+                      _getUserName(toUserId),
+                    ]),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const ListTile(title: Text('Загрузка...'));
+                      }
+                      final fromUserName = snapshot.data![0];
+                      final toUserName = snapshot.data![1];
+
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 3,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Левая часть: звезда + отзыв и детали
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.star,
+                                          color: Colors.amber,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Рейтинг: $rating',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      text,
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Автор: $fromUserName',
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                    Text(
+                                      'Исполнитель: $toUserName',
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Статус: $status',
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // Правая часть: кнопки в столбец
+                              if (status == 'pending')
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        minimumSize: const Size(100, 36),
+                                      ),
+                                      child: const Text('Одобрить'),
+                                      onPressed: () async {
+                                        await FirebaseFirestore.instance
+                                            .collection('reviews')
+                                            .doc(review.id)
+                                            .update({'status': 'approved'});
+                                      },
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        minimumSize: const Size(100, 36),
+                                      ),
+                                      child: const Text('Отклонить'),
+                                      onPressed: () async {
+                                        await FirebaseFirestore.instance
+                                            .collection('reviews')
+                                            .doc(review.id)
+                                            .update({'status': 'rejected'});
+                                      },
+                                    ),
+                                  ],
+                                )
+                              else
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 12),
+                                  child: Icon(
+                                    status == 'approved'
+                                        ? Icons.check_circle
+                                        : Icons.cancel,
+                                    color:
+                                        status == 'approved'
+                                            ? Colors.green
+                                            : Colors.red,
+                                    size: 32,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<String> _getUserName(String userId) async {
+    if (userId.isEmpty) return 'Неизвестный';
+    try {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
+      final data = doc.data();
+      return data?['name'] ?? 'Без имени';
+    } catch (_) {
+      return 'Неизвестный';
+    }
+  }
 }
 
 class _UserCount {
