@@ -146,7 +146,7 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
     final isDark = widget.isDarkTheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Профиль исполнителя')),
+      appBar: AppBar(title: const Text('Профиль')),
       body: FutureBuilder(
         future: Future.wait([
           fetchUserData(),
@@ -242,7 +242,7 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  'Объявления исполнителя',
+                  'Объявления',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),

@@ -286,7 +286,20 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
                     ),
                   ),
                   leftTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: true),
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 30,
+                      interval: 1,
+                      getTitlesWidget: (value, meta) {
+                        return SideTitleWidget(
+                          axisSide: meta.axisSide,
+                          child: Text(
+                            value.toInt().toString(),
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                   rightTitles: AxisTitles(
                     sideTitles: SideTitles(showTitles: false),
@@ -319,6 +332,19 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
   }
 
   Widget _buildReviewsTab() {
+    String translateStatus(String status) {
+      switch (status) {
+        case 'pending':
+          return 'Ожидает одобрения';
+        case 'approved':
+          return 'Одобрен';
+        case 'rejected':
+          return 'Отклонён';
+        default:
+          return 'Неизвестно';
+      }
+    }
+
     return StreamBuilder<QuerySnapshot>(
       stream:
           FirebaseFirestore.instance
@@ -352,7 +378,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
                 itemBuilder: (context, index) {
                   final review = reviews[index];
                   final data = review.data() as Map<String, dynamic>;
-                  final text = data['comment'] ?? ''; // у вас поле "comment"
+                  final text = data['comment'] ?? '';
                   final rating = data['rating'] ?? 0;
                   final status = data['status'] ?? 'pending';
                   final fromUserId = data['fromUserId'] ?? '';
@@ -421,14 +447,14 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      'Статус: $status',
+                                      'Статус: ${translateStatus(status)}',
                                       style: const TextStyle(fontSize: 14),
                                     ),
                                   ],
                                 ),
                               ),
 
-                              // Правая часть: кнопки в столбец
+                              // Правая часть: кнопки или иконка
                               if (status == 'pending')
                                 Column(
                                   mainAxisAlignment: MainAxisAlignment.center,

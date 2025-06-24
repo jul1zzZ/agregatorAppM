@@ -56,6 +56,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Агрегатор услуг',
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),

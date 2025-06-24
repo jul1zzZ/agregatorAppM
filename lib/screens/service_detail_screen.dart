@@ -202,7 +202,7 @@ class ServiceDetailScreen extends StatelessWidget {
           children: [
             ElevatedButton.icon(
               icon: const Icon(Icons.person),
-              label: const Text('Профиль исполнителя'),
+              label: const Text('Профиль'),
               onPressed: () {
                 Navigator.pushNamed(
                   context,
@@ -215,7 +215,7 @@ class ServiceDetailScreen extends StatelessWidget {
             if (!isOwner)
               ElevatedButton.icon(
                 icon: const Icon(Icons.chat),
-                label: const Text('Написать исполнителю'),
+                label: const Text('Написать'),
                 onPressed: () {
                   Navigator.push(
                     context,
