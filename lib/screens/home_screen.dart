@@ -36,7 +36,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Инициализация из параметра, либо false, если null
     isDarkTheme = widget.isDarkTheme ?? false;
   }
 
@@ -44,8 +43,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       isDarkTheme = !isDarkTheme;
     });
-    // Если хотите, чтобы toggleTheme вызывал callback из widget,
-    // чтобы поднималась тема выше — добавьте:
     if (widget.onToggleTheme != null) {
       widget.onToggleTheme!();
     }

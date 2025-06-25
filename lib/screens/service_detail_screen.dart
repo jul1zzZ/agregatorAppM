@@ -141,7 +141,7 @@ class ServiceDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Цена: \$${service.price.toStringAsFixed(2)}',
+                    'Цена: ${service.price.toStringAsFixed(2)} ₽',
                     style: TextStyle(color: textColor),
                   ),
                   const SizedBox(height: 16),

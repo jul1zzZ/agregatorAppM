@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rxdart/rxdart.dart';
+import 'performer_profile_screen.dart'; // Импортируй свой экран профиля
 
 class MyJobsScreen extends StatelessWidget {
   final bool isDarkTheme;
@@ -18,7 +19,7 @@ class MyJobsScreen extends StatelessWidget {
         .collection('responses')
         .where('workerId', isEqualTo: userId)
         .where('accepted', isEqualTo: true)
-        .where('status', isNotEqualTo: 'done') // активные
+        .where('status', isNotEqualTo: 'done')
         .snapshots()
         .map((snapshot) => snapshot.docs);
   }
@@ -27,7 +28,7 @@ class MyJobsScreen extends StatelessWidget {
     return FirebaseFirestore.instance
         .collection('responses_archive')
         .where('workerId', isEqualTo: userId)
-        .where('status', isEqualTo: 'done') // завершённые
+        .where('status', isEqualTo: 'done')
         .snapshots()
         .map((snapshot) => snapshot.docs);
   }
@@ -74,18 +75,33 @@ class MyJobsScreen extends StatelessWidget {
               final status = data['status'] ?? 'unknown';
               final isDone = status == 'done';
 
-              return ListTile(
-                title: Text(data['serviceTitle'] ?? 'Без названия'),
-                subtitle: Text(
-                  'Работодатель: ${data['ownerName'] ?? 'Неизвестен'}',
+              return InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (_) => PerformerProfileScreen(
+                            performerId: data['ownerId'],
+                            isDarkTheme: isDarkTheme,
+                            onToggleTheme: onToggleTheme,
+                          ),
+                    ),
+                  );
+                },
+                child: ListTile(
+                  title: Text(data['serviceTitle'] ?? 'Без названия'),
+                  subtitle: Text(
+                    'Работодатель: ${data['ownerName'] ?? 'Неизвестен'}',
+                  ),
+                  trailing:
+                      isDone
+                          ? const Icon(Icons.check_circle, color: Colors.green)
+                          : const Text(
+                            'В процессе',
+                            style: TextStyle(color: Colors.orange),
+                          ),
                 ),
-                trailing:
-                    isDone
-                        ? const Icon(Icons.check_circle, color: Colors.green)
-                        : const Text(
-                          'В процессе',
-                          style: TextStyle(color: Colors.orange),
-                        ),
               );
             },
           );
