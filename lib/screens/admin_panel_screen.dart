@@ -28,76 +28,224 @@ class AdminPanelScreen extends StatefulWidget {
 class _AdminPanelScreenState extends State<AdminPanelScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+
   Map<String, int> _servicesByDate = {};
   List<_UserCount> _topUsers = [];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this, initialIndex: 2);
+    _tabController = TabController(length: 5, vsync: this);
     _loadStatistics();
   }
 
-  Future<void> _toggleBlock(String userId, bool currentStatus) async {
-    await FirebaseFirestore.instance.collection('users').doc(userId).update({
-      'isBlocked': !currentStatus,
-    });
+  Future<void> _loadStatistics() async {
+    try {
+      final servicesSnap =
+          await FirebaseFirestore.instance.collection('services').get();
+      final services = servicesSnap.docs;
+
+      Map<String, int> countByDate = {};
+      Map<String, int> countByUser = {};
+      final dateFormat = DateFormat('yyyy-MM-dd');
+
+      for (var service in services) {
+        final data = service.data();
+        final createdAt = data['createdAt'];
+        if (createdAt is Timestamp) {
+          String day = dateFormat.format(createdAt.toDate());
+          countByDate[day] = (countByDate[day] ?? 0) + 1;
+        }
+
+        String? masterId = data['masterId'];
+        if (masterId != null && masterId.isNotEmpty) {
+          countByUser[masterId] = (countByUser[masterId] ?? 0) + 1;
+        }
+      }
+
+      var sortedUsers =
+          countByUser.entries.toList()
+            ..sort((a, b) => b.value.compareTo(a.value));
+      sortedUsers = sortedUsers.take(5).toList();
+
+      List<_UserCount> topUsersWithNames = [];
+
+      for (var entry in sortedUsers) {
+        final userDoc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(entry.key)
+                .get();
+        final userData = userDoc.data();
+        String userName =
+            userData != null
+                ? (userData['name'] ?? 'Без имени')
+                : 'Неизвестный';
+        topUsersWithNames.add(_UserCount(userName, entry.value));
+      }
+
+      setState(() {
+        _servicesByDate = countByDate;
+        _topUsers = topUsersWithNames;
+      });
+    } catch (e) {
+      debugPrint('Ошибка загрузки статистики: $e');
+    }
+  }
+
+  Future<void> _toggleBlockUser(String userId, bool isBlocked) async {
+    if (isBlocked) {
+      // Разблокировать пользователя - удалить blockedUntil
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'blockedUntil': null,
+      });
+    } else {
+      // Заблокировать без срока (по умолчанию 7 дней)
+      final blockedUntil = DateTime.now().add(Duration(days: 7));
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'blockedUntil': blockedUntil,
+      });
+    }
   }
 
   Future<void> _deleteService(String serviceId) async {
-    await FirebaseFirestore.instance
-        .collection('services')
-        .doc(serviceId)
-        .delete();
-    await _loadStatistics();
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Подтвердите удаление'),
+            content: const Text('Вы действительно хотите удалить эту услугу?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Отмена'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Удалить'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm == true) {
+      await FirebaseFirestore.instance
+          .collection('services')
+          .doc(serviceId)
+          .delete();
+      await _loadStatistics();
+    }
   }
 
-  Future<void> _loadStatistics() async {
-    final servicesSnap =
-        await FirebaseFirestore.instance.collection('services').get();
-    final services = servicesSnap.docs;
+  Future<void> _approveReview(String reviewId) async {
+    await FirebaseFirestore.instance.collection('reviews').doc(reviewId).update(
+      {'status': 'approved'},
+    );
+  }
 
-    Map<String, int> countByDate = {};
-    Map<String, int> countByUser = {};
-    final dateFormat = DateFormat('yyyy-MM-dd');
+  Future<void> _rejectReview(String reviewId) async {
+    await FirebaseFirestore.instance.collection('reviews').doc(reviewId).update(
+      {'status': 'rejected'},
+    );
+  }
 
-    for (var service in services) {
-      final data = service.data();
-      final createdAt = data['createdAt'];
-      if (createdAt is Timestamp) {
-        String day = dateFormat.format(createdAt.toDate());
-        countByDate[day] = (countByDate[day] ?? 0) + 1;
-      }
+  Future<void> _approveComplaint(String complaintId) async {
+    final days = await _showBlockDurationDialog();
+    if (days == null) return; // отмена
 
-      String? masterId = data['masterId'];
-      if (masterId != null && masterId.isNotEmpty) {
-        countByUser[masterId] = (countByUser[masterId] ?? 0) + 1;
-      }
+    // Получаем жалобу
+    final complaintDoc =
+        await FirebaseFirestore.instance
+            .collection('complaints')
+            .doc(complaintId)
+            .get();
+    final complaintData = complaintDoc.data();
+    if (complaintData == null) return;
+
+    final toUserId = complaintData['toUserId'] ?? '';
+
+    // Устанавливаем блокировку для пользователя
+    final blockedUntil = DateTime.now().add(Duration(days: days));
+    await FirebaseFirestore.instance.collection('users').doc(toUserId).update({
+      'isBlocked': true,
+      'blockedUntil': blockedUntil,
+    });
+
+    // Обновляем статус жалобы
+    await FirebaseFirestore.instance
+        .collection('complaints')
+        .doc(complaintId)
+        .update({'status': 'approved'});
+  }
+
+  Future<void> _rejectComplaint(String complaintId) async {
+    await FirebaseFirestore.instance
+        .collection('complaints')
+        .doc(complaintId)
+        .update({'status': 'rejected'});
+  }
+
+  Future<int?> _showBlockDurationDialog() async {
+    final controller = TextEditingController(text: '7');
+    return showDialog<int>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Введите срок блокировки (в днях)'),
+            content: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(hintText: 'Количество дней'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(null),
+                child: const Text('Отмена'),
+              ),
+              TextButton(
+                onPressed: () {
+                  final value = int.tryParse(controller.text);
+                  if (value == null || value <= 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Введите корректное число')),
+                    );
+                    return;
+                  }
+                  Navigator.of(context).pop(value);
+                },
+                child: const Text('Подтвердить'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  String _translateStatus(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Ожидает одобрения';
+      case 'approved':
+        return 'Одобрен';
+      case 'rejected':
+        return 'Отклонён';
+      default:
+        return 'Неизвестно';
     }
+  }
 
-    var sortedUsers =
-        countByUser.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
-    sortedUsers = sortedUsers.take(5).toList();
-
-    List<_UserCount> topUsersWithNames = [];
-
-    for (var entry in sortedUsers) {
-      final userDoc =
+  Future<String> _getUserName(String userId) async {
+    if (userId.isEmpty) return 'Неизвестный';
+    try {
+      final doc =
           await FirebaseFirestore.instance
               .collection('users')
-              .doc(entry.key)
+              .doc(userId)
               .get();
-      final userData = userDoc.data();
-      String userName =
-          userData != null ? (userData['name'] ?? 'Без имени') : 'Неизвестный';
-      topUsersWithNames.add(_UserCount(userName, entry.value));
+      final data = doc.data();
+      return data?['name'] ?? 'Без имени';
+    } catch (_) {
+      return 'Неизвестный';
     }
-
-    setState(() {
-      _servicesByDate = countByDate;
-      _topUsers = topUsersWithNames;
-    });
   }
 
   @override
@@ -109,6 +257,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
           IconButton(
             icon: Icon(widget.isDarkTheme ? Icons.dark_mode : Icons.light_mode),
             onPressed: widget.onToggleTheme,
+            tooltip: 'Переключить тему',
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -136,7 +285,9 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
             Tab(text: 'Заявки'),
             Tab(text: 'Статистика'),
             Tab(text: 'Отзывы'),
+            Tab(text: 'Жалобы'),
           ],
+          isScrollable: true,
         ),
       ),
       body: TabBarView(
@@ -146,6 +297,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
           _buildServicesTab(),
           _buildStatisticsTab(),
           _buildReviewsTab(),
+          _buildComplaintsTab(),
         ],
       ),
     );
@@ -160,6 +312,10 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
 
         final users = snapshot.data!.docs;
 
+        if (users.isEmpty) {
+          return const Center(child: Text('Нет пользователей'));
+        }
+
         return ListView.builder(
           itemCount: users.length,
           itemBuilder: (context, index) {
@@ -168,23 +324,34 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
             final name = data['name'] ?? 'Без имени';
             final email = data['email'] ?? '';
             final userType = data['userType'] ?? 'client';
-            final isBlocked =
-                data.containsKey('isBlocked')
-                    ? data['isBlocked'] == true
-                    : false;
+            final blockedUntilTimestamp = data['blockedUntil'];
+            DateTime? blockedUntil;
+            if (blockedUntilTimestamp is Timestamp) {
+              blockedUntil = blockedUntilTimestamp.toDate();
+            }
+            final now = DateTime.now();
+            final isBlocked = blockedUntil != null && blockedUntil.isAfter(now);
+
+            String blockedInfo = '';
+            if (isBlocked) {
+              blockedInfo =
+                  ' (заблокирован до ${DateFormat('dd.MM.yyyy').format(blockedUntil)})';
+            }
 
             return ListTile(
-              leading: Icon(Icons.person, color: isBlocked ? Colors.red : null),
-              title: Text(name),
-              subtitle: Text('$email | роль: $userType'),
+              leading: CircleAvatar(
+                child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?'),
+              ),
+              title: Text('$name$blockedInfo'),
+              subtitle: Text('$email — $userType'),
               trailing: ElevatedButton(
+                onPressed: () async {
+                  await _toggleBlockUser(user.id, isBlocked);
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isBlocked ? Colors.green : Colors.red,
                 ),
-                onPressed: () async {
-                  await _toggleBlock(user.id, isBlocked);
-                },
-                child: Text(isBlocked ? 'Разблок.' : 'Блок.'),
+                child: Text(isBlocked ? 'Разблокировать' : 'Заблокировать'),
               ),
             );
           },
@@ -202,27 +369,35 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
 
         final services = snapshot.data!.docs;
 
+        if (services.isEmpty) {
+          return const Center(child: Text('Нет заявок'));
+        }
+
         return ListView.builder(
           itemCount: services.length,
           itemBuilder: (context, index) {
             final service = services[index];
-            final title = service['title'] ?? 'Без названия';
-            final description = service['description'] ?? '';
+            final data = service.data() as Map<String, dynamic>;
+            final title = data['title'] ?? '';
+            final masterId = data['masterId'] ?? '';
+            final price = data['price'] ?? 0;
 
-            return ListTile(
-              leading: const Icon(Icons.work),
-              title: Text(title),
-              subtitle: Text(
-                description,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () async {
-                  await _deleteService(service.id);
-                },
-              ),
+            return FutureBuilder<String>(
+              future: _getUserName(masterId),
+              builder: (context, snapshotName) {
+                final masterName = snapshotName.data ?? 'Неизвестный';
+
+                return ListTile(
+                  title: Text(title),
+                  subtitle: Text('Исполнитель: $masterName, Цена: $price'),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () async {
+                      await _deleteService(service.id);
+                    },
+                  ),
+                );
+              },
             );
           },
         );
@@ -231,99 +406,75 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
   }
 
   Widget _buildStatisticsTab() {
-    if (_servicesByDate.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    final sortedDates = _servicesByDate.keys.toList()..sort();
 
-    List<BarChartGroupData> barGroups =
-        _servicesByDate.entries
-            .toList()
-            .asMap()
-            .entries
-            .map(
-              (entry) => BarChartGroupData(
-                x: entry.key,
-                barRods: [
-                  BarChartRodData(
-                    toY: entry.value.value.toDouble(),
-                    width: 16,
-                    color: Colors.blue,
-                  ),
-                ],
-              ),
-            )
-            .toList();
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'График публикаций услуг по датам:',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            'График публикаций услуг по датам',
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
           SizedBox(
-            height: 300,
-            child: BarChart(
-              BarChartData(
-                barGroups: barGroups,
+            height: 200,
+            child: LineChart(
+              LineChartData(
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: [
+                      for (int i = 0; i < sortedDates.length; i++)
+                        FlSpot(
+                          i.toDouble(),
+                          _servicesByDate[sortedDates[i]]!.toDouble(),
+                        ),
+                    ],
+                    isCurved: true,
+                    barWidth: 3,
+                    color: Colors.blue,
+                    dotData: FlDotData(show: false),
+                  ),
+                ],
                 titlesData: FlTitlesData(
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      getTitlesWidget: (double value, TitleMeta meta) {
-                        final index = value.toInt();
-                        final key = _servicesByDate.keys.elementAt(index);
-                        return SideTitleWidget(
-                          axisSide: meta.axisSide,
-                          child: Text(
-                            key.substring(5),
-                            style: const TextStyle(fontSize: 10),
-                          ),
+                      interval: 1,
+                      getTitlesWidget: (value, meta) {
+                        if (value.toInt() < 0 ||
+                            value.toInt() >= sortedDates.length) {
+                          return const SizedBox.shrink();
+                        }
+                        final date = sortedDates[value.toInt()];
+                        return Text(
+                          DateFormat('MM-dd').format(DateTime.parse(date)),
                         );
                       },
                     ),
                   ),
                   leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 30,
-                      interval: 1,
-                      getTitlesWidget: (value, meta) {
-                        return SideTitleWidget(
-                          axisSide: meta.axisSide,
-                          child: Text(
-                            value.toInt().toString(),
-                            style: const TextStyle(fontSize: 10),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  rightTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
+                    sideTitles: SideTitles(showTitles: true),
                   ),
                 ),
-                borderData: FlBorderData(show: false),
-                gridData: FlGridData(show: false),
+                gridData: FlGridData(show: true),
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           const Text(
-            'ТОП-5 пользователей по количеству услуг:',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            'ТОП-5 пользователей по количеству услуг',
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 8),
-          ..._topUsers.map(
-            (user) => ListTile(
-              leading: const Icon(Icons.person),
-              title: Text(user.userName),
-              trailing: Text(user.count.toString()),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _topUsers.length,
+              itemBuilder: (context, index) {
+                final user = _topUsers[index];
+                return ListTile(
+                  title: Text(user.userName),
+                  trailing: Text(user.count.toString()),
+                );
+              },
             ),
           ),
         ],
@@ -332,209 +483,140 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
   }
 
   Widget _buildReviewsTab() {
-    String translateStatus(String status) {
-      switch (status) {
-        case 'pending':
-          return 'Ожидает одобрения';
-        case 'approved':
-          return 'Одобрен';
-        case 'rejected':
-          return 'Отклонён';
-        default:
-          return 'Неизвестно';
-      }
-    }
-
     return StreamBuilder<QuerySnapshot>(
-      stream:
-          FirebaseFirestore.instance
-              .collection('reviews')
-              .orderBy('status')
-              .snapshots(),
+      stream: FirebaseFirestore.instance.collection('reviews').snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        if (!snapshot.hasData)
           return const Center(child: CircularProgressIndicator());
-        }
 
         final reviews = snapshot.data!.docs;
-        final total = reviews.length;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Text(
-                'Всего отзывов: $total',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: reviews.length,
-                itemBuilder: (context, index) {
-                  final review = reviews[index];
-                  final data = review.data() as Map<String, dynamic>;
-                  final text = data['comment'] ?? '';
-                  final rating = data['rating'] ?? 0;
-                  final status = data['status'] ?? 'pending';
-                  final fromUserId = data['fromUserId'] ?? '';
-                  final toUserId = data['toUserId'] ?? '';
+        if (reviews.isEmpty) {
+          return const Center(child: Text('Нет отзывов'));
+        }
 
-                  return FutureBuilder<List<String>>(
-                    future: Future.wait([
-                      _getUserName(fromUserId),
-                      _getUserName(toUserId),
-                    ]),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return const ListTile(title: Text('Загрузка...'));
-                      }
-                      final fromUserName = snapshot.data![0];
-                      final toUserName = snapshot.data![1];
+        return ListView.builder(
+          itemCount: reviews.length,
+          itemBuilder: (context, index) {
+            final review = reviews[index];
+            final data = review.data() as Map<String, dynamic>;
+            final content = data['content'] ?? '';
+            final status = data['status'] ?? 'pending';
+            final userId = data['userId'] ?? '';
 
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+            return FutureBuilder<String>(
+              future: _getUserName(userId),
+              builder: (context, snapshotName) {
+                final userName = snapshotName.data ?? 'Неизвестный';
+
+                return ListTile(
+                  title: Text(content),
+                  subtitle: Text(
+                    'Автор: $userName — Статус: ${_translateStatus(status)}',
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (status == 'pending')
+                        IconButton(
+                          icon: const Icon(Icons.check, color: Colors.green),
+                          onPressed: () async {
+                            await _approveReview(review.id);
+                          },
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                      if (status == 'pending')
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.red),
+                          onPressed: () async {
+                            await _rejectReview(review.id);
+                          },
                         ),
-                        elevation: 3,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Левая часть: звезда + отзыв и детали
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.star,
-                                          color: Colors.amber,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'Рейтинг: $rating',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      text,
-                                      style: const TextStyle(fontSize: 14),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      'Автор: $fromUserName',
-                                      style: const TextStyle(fontSize: 14),
-                                    ),
-                                    Text(
-                                      'Исполнитель: $toUserName',
-                                      style: const TextStyle(fontSize: 14),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Статус: ${translateStatus(status)}',
-                                      style: const TextStyle(fontSize: 14),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              // Правая часть: кнопки или иконка
-                              if (status == 'pending')
-                                Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
-                                        minimumSize: const Size(100, 36),
-                                      ),
-                                      child: const Text('Одобрить'),
-                                      onPressed: () async {
-                                        await FirebaseFirestore.instance
-                                            .collection('reviews')
-                                            .doc(review.id)
-                                            .update({'status': 'approved'});
-                                      },
-                                    ),
-                                    const SizedBox(height: 8),
-                                    ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                        minimumSize: const Size(100, 36),
-                                      ),
-                                      child: const Text('Отклонить'),
-                                      onPressed: () async {
-                                        await FirebaseFirestore.instance
-                                            .collection('reviews')
-                                            .doc(review.id)
-                                            .update({'status': 'rejected'});
-                                      },
-                                    ),
-                                  ],
-                                )
-                              else
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 12),
-                                  child: Icon(
-                                    status == 'approved'
-                                        ? Icons.check_circle
-                                        : Icons.cancel,
-                                    color:
-                                        status == 'approved'
-                                            ? Colors.green
-                                            : Colors.red,
-                                    size: 32,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
+                    ],
+                  ),
+                );
+              },
+            );
+          },
         );
       },
     );
   }
 
-  Future<String> _getUserName(String userId) async {
-    if (userId.isEmpty) return 'Неизвестный';
-    try {
-      final doc =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userId)
-              .get();
-      final data = doc.data();
-      return data?['name'] ?? 'Без имени';
-    } catch (_) {
-      return 'Неизвестный';
-    }
+  Widget _buildComplaintsTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('complaints').snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData)
+          return const Center(child: CircularProgressIndicator());
+
+        final complaints = snapshot.data!.docs;
+
+        if (complaints.isEmpty) {
+          return const Center(child: Text('Нет жалоб'));
+        }
+
+        return ListView.builder(
+          itemCount: complaints.length,
+          itemBuilder: (context, index) {
+            final complaint = complaints[index];
+            final data = complaint.data() as Map<String, dynamic>;
+            final content = data['content'] ?? '';
+            final status = data['status'] ?? 'pending';
+            final fromUserId = data['fromUserId'] ?? '';
+            final toUserId = data['toUserId'] ?? '';
+
+            return FutureBuilder<List<String>>(
+              future: Future.wait([
+                _getUserName(fromUserId),
+                _getUserName(toUserId),
+              ]),
+              builder: (context, snapshotNames) {
+                if (!snapshotNames.hasData) {
+                  return const ListTile(title: Text('Загрузка...'));
+                }
+
+                final names = snapshotNames.data!;
+                final fromUserName = names[0];
+                final toUserName = names[1];
+
+                return ListTile(
+                  title: Text(content),
+                  subtitle: Text(
+                    'От: $fromUserName\nКому: $toUserName\nСтатус: ${_translateStatus(status)}',
+                  ),
+                  isThreeLine: true,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (status == 'pending')
+                        IconButton(
+                          icon: const Icon(Icons.check, color: Colors.green),
+                          onPressed: () async {
+                            await _approveComplaint(complaint.id);
+                          },
+                        ),
+                      if (status == 'pending')
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.red),
+                          onPressed: () async {
+                            await _rejectComplaint(complaint.id);
+                          },
+                        ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
   }
 }
 
 class _UserCount {
   final String userName;
   final int count;
+
   _UserCount(this.userName, this.count);
 }

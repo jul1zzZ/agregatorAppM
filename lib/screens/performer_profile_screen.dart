@@ -51,9 +51,8 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
         await FirebaseFirestore.instance
             .collection('reviews')
             .where('toUserId', isEqualTo: widget.performerId)
-            .where('status', isEqualTo: 'approved') // Только одобренные отзывы
+            .where('status', isEqualTo: 'approved')
             .get();
-
     return snapshot.docs.map((doc) => doc.data()).toList();
   }
 
@@ -78,7 +77,7 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      Text('Оценка:'),
+                      const Text('Оценка:'),
                       Slider(
                         value: rating,
                         min: 1,
@@ -129,15 +128,86 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
     );
   }
 
-  Future<void> reportUser() async {
-    await FirebaseFirestore.instance.collection('complaints').add({
-      'fromUserId': currentUserId,
-      'toUserId': widget.performerId,
-      'createdAt': Timestamp.now(),
-    });
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Жалоба отправлена')));
+  Future<void> reportUserDialog() async {
+    final reasons = [
+      'Спам',
+      'Мошенничество',
+      'Оскорбительное поведение',
+      'Неверная информация',
+      'Другое',
+    ];
+    String selectedReason = reasons[0];
+    final commentController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setStateDialog) => AlertDialog(
+                  title: const Text('Пожаловаться на пользователя'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      DropdownButtonFormField<String>(
+                        value: selectedReason,
+                        items:
+                            reasons
+                                .map(
+                                  (r) => DropdownMenuItem(
+                                    value: r,
+                                    child: Text(r),
+                                  ),
+                                )
+                                .toList(),
+                        onChanged:
+                            (val) => setStateDialog(
+                              () => selectedReason = val ?? reasons[0],
+                            ),
+                        decoration: const InputDecoration(labelText: 'Причина'),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: commentController,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          labelText: 'Комментарий (необязательно)',
+                        ),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Отмена'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        await FirebaseFirestore.instance
+                            .collection('complaints')
+                            .add({
+                              'fromUserId': currentUserId,
+                              'toUserId': widget.performerId,
+                              'reason': selectedReason,
+                              'comment': commentController.text.trim(),
+                              'createdAt': Timestamp.now(),
+                              'status': 'pending',
+                            });
+
+                        Navigator.pop(context);
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Жалоба отправлена на модерацию'),
+                          ),
+                        );
+                      },
+                      child: const Text('Отправить'),
+                    ),
+                  ],
+                ),
+          ),
+    );
   }
 
   @override
@@ -154,15 +224,17 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
           fetchReviews(),
         ]),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
 
           final userData = snapshot.data![0] as Map<String, dynamic>?;
           final services = snapshot.data![1] as List<Service>;
           final reviews = snapshot.data![2] as List<Map<String, dynamic>>;
 
-          if (userData == null)
+          if (userData == null) {
             return const Center(child: Text('Пользователь не найден'));
+          }
 
           double avgRating = 0;
           if (reviews.isNotEmpty) {
@@ -235,7 +307,7 @@ class _PerformerProfileScreenState extends State<PerformerProfileScreen> {
                 ),
                 const SizedBox(height: 8),
                 ElevatedButton.icon(
-                  onPressed: reportUser,
+                  onPressed: reportUserDialog,
                   icon: const Icon(Icons.report),
                   label: const Text('Пожаловаться'),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),

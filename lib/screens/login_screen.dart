@@ -15,7 +15,8 @@ class LoginScreen extends StatefulWidget {
   _LoginScreenState createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen>
+    with TickerProviderStateMixin {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -39,10 +40,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
+    ).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
 
     _fadeAnimation = CurvedAnimation(
       parent: _animationController,
@@ -53,75 +53,92 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Future<void> _login() async {
-  setState(() => _isLoading = true);
-  try {
-    UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-      email: _emailController.text.trim(),
-      password: _passwordController.text.trim(),
-    );
+    setState(() => _isLoading = true);
+    try {
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
 
-    final user = userCredential.user;
-    if (user == null) throw FirebaseAuthException(code: 'UNKNOWN', message: 'Не удалось войти');
+      final user = userCredential.user;
+      if (user == null)
+        throw FirebaseAuthException(
+          code: 'UNKNOWN',
+          message: 'Не удалось войти',
+        );
 
-    final userDoc = await _firestore.collection('users').doc(user.uid).get();
-    if (!userDoc.exists) {
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      if (!userDoc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Профиль пользователя не найден.')),
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final userData = userDoc.data()!;
+      final userType = userData['userType'] ?? 'client';
+
+      final bool isBlocked = userData['isBlocked'] == true;
+      final Timestamp? blockedUntil = userData['blockedUntil'];
+
+      if (isBlocked) {
+        if (blockedUntil != null &&
+            blockedUntil.toDate().isAfter(DateTime.now())) {
+          final formattedDate =
+              blockedUntil.toDate().toLocal().toString().split('.')[0];
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Вы заблокированы до $formattedDate')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Вы были заблокированы администратором.'),
+            ),
+          );
+        }
+        await _auth.signOut();
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      Widget nextScreen;
+
+      if (userType == 'admin') {
+        nextScreen = AdminPanelScreen(
+          userId: user.uid,
+          userName: userData['name'] ?? '',
+          userEmail: userData['email'] ?? '',
+          onToggleTheme: widget.onToggleTheme ?? () {},
+          isDarkTheme: widget.isDarkTheme ?? false,
+        );
+      } else {
+        nextScreen = HomeScreen(
+          userId: user.uid,
+          userName: userData['name'] ?? '',
+          userEmail: userData['email'] ?? '',
+          userAvatarUrl: userData['profileImageUrl'] ?? '',
+          onToggleTheme: widget.onToggleTheme ?? () {},
+          isDarkTheme: widget.isDarkTheme ?? false,
+        );
+      }
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => nextScreen),
+      );
+    } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Профиль пользователя не найден.')),
+        SnackBar(content: Text('Ошибка авторизации: ${e.message}')),
       );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+    } finally {
       setState(() => _isLoading = false);
-      return;
     }
-
-    final userData = userDoc.data()!;
-    final userType = userData['userType'] ?? 'client';
-
-    if (userData['isBlocked'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Вы были заблокированы администратором.')),
-      );
-      await _auth.signOut();
-      setState(() => _isLoading = false);
-      return;
-    }
-
-    Widget nextScreen;
-
-    if (userType == 'admin') {
-      nextScreen = AdminPanelScreen(
-        userId: user.uid,
-        userName: userData['name'] ?? '',
-        userEmail: userData['email'] ?? '',
-        onToggleTheme: widget.onToggleTheme ?? () {},
-        isDarkTheme: widget.isDarkTheme ?? false,
-      );
-    } else {
-      nextScreen = HomeScreen(
-        userId: user.uid,
-        userName: userData['name'] ?? '',
-        userEmail: userData['email'] ?? '',
-        userAvatarUrl: userData['profileImageUrl'] ?? '',
-        onToggleTheme: widget.onToggleTheme ?? () {},
-        isDarkTheme: widget.isDarkTheme ?? false,
-      );
-    }
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => nextScreen),
-    );
-  } on FirebaseAuthException catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Ошибка авторизации: ${e.message}')),
-    );
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Ошибка: $e')),
-    );
-  } finally {
-    setState(() => _isLoading = false);
   }
-}
-
 
   @override
   void dispose() {
@@ -203,21 +220,32 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 300),
-                    child: _isLoading
-                        ? const CircularProgressIndicator()
-                        : SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              key: const ValueKey('login_button'),
-                              onPressed: _login,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blueAccent,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child:
+                        _isLoading
+                            ? const CircularProgressIndicator()
+                            : SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                key: const ValueKey('login_button'),
+                                onPressed: _login,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blueAccent,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Войти',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
-                              child: const Text('Войти', style: TextStyle(fontSize: 16, color: Colors.white)),
                             ),
-                          ),
                   ),
 
                   const SizedBox(height: 16),
@@ -225,15 +253,22 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Нет аккаунта?', style: TextStyle(color: isDark ? Colors.white70 : Colors.black54)),
+                      Text(
+                        'Нет аккаунта?',
+                        style: TextStyle(
+                          color: isDark ? Colors.white70 : Colors.black54,
+                        ),
+                      ),
                       TextButton(
-                        onPressed: () => Navigator.pushNamed(context, '/register'),
+                        onPressed:
+                            () => Navigator.pushNamed(context, '/register'),
                         child: const Text('Регистрация'),
                       ),
                     ],
                   ),
                   TextButton(
-                    onPressed: () => Navigator.pushNamed(context, '/forgot_password'),
+                    onPressed:
+                        () => Navigator.pushNamed(context, '/forgot_password'),
                     child: const Text('Забыли пароль?'),
                   ),
                 ],
@@ -267,7 +302,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
+          borderSide: BorderSide(
+            color: isDark ? Colors.white24 : Colors.black26,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
